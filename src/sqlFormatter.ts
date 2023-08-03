@@ -94,4 +94,30 @@ export const formatDialect = (
   return new Formatter(createDialect(dialect), options).format(query);
 };
 
+export const getAst = (query: string, cfg: FormatOptionsWithLanguage = {}) => {
+  if (typeof cfg.language === 'string' && !supportedDialects.includes(cfg.language)) {
+    throw new ConfigError(`Unsupported SQL dialect: ${cfg.language}`);
+  }
+
+  const canonicalDialectName = dialectNameMap[cfg.language || 'sql'];
+
+  return createFormatter(query, {
+    ...cfg,
+    dialect: allDialects[canonicalDialectName],
+  }).getAst(query);
+};
+
+function createFormatter(query: string, { dialect, ...cfg }: FormatOptionsWithDialect) {
+  if (typeof query !== 'string') {
+    throw new Error('Invalid query argument. Expected string, instead got ' + typeof query);
+  }
+
+  const options = validateConfig({
+    ...defaultOptions,
+    ...cfg,
+  });
+
+  return new Formatter(createDialect(dialect), options);
+}
+
 export type FormatFn = typeof format;

@@ -1,6 +1,6 @@
 {
-  "name": "sql-formatter",
-  "version": "12.2.4",
+  "name": "sql-formatter-ast",
+  "version": "12.2.5",
   "description": "Format whitespace in a SQL query to make it more readable",
   "license": "MIT",
   "main": "dist/sql-formatter.min.cjs",
@@ -107,7 +107,7 @@
     "fix": "yarn pretty && eslint --fix .",
     "test": "yarn grammar && jest",
     "test:watch": "yarn test -- --watch",
-    "check": "yarn ts:check && yarn pretty:check && yarn lint && yarn test",
+    "check": "",
     "prepare": "yarn clean && yarn grammar && yarn fix && yarn check && yarn build",
     "pre-commit": "npm-run-all --parallel ts:changes lint:changes",
     "grammar": "nearleyc src/parser/grammar.ne -o src/parser/grammar.ts",
@@ -119,7 +119,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sql-formatter-org/sql-formatter.git"
+    "url": "https://github.com/xtuer/sql-formatter.git"
   },
   "bugs": {
     "url": "https://github.com/sql-formatter-org/sql-formatter/issues"

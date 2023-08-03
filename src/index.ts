@@ -1,4 +1,4 @@
-export { supportedDialects, format, formatDialect } from './sqlFormatter.js';
+export { supportedDialects, format, getAst, formatDialect } from './sqlFormatter.js';
 export { expandPhrases } from './expandPhrases.js';
 export { ConfigError } from './validateConfig.js';
 

@@ -22,13 +22,13 @@ It does not support:
 Get the latest version from NPM:
 
 ```sh
-npm install sql-formatter
+npm install sql-formatter-ast
 ```
 
 Also available with yarn:
 
 ```sh
-yarn add sql-formatter
+yarn add sql-formatter-ast
 ```
 
 ## Usage
@@ -36,7 +36,7 @@ yarn add sql-formatter
 ### Usage as library
 
 ```js
-import { format } from 'sql-formatter';
+import { format } from 'sql-formatter-ast';
 
 console.log(format('SELECT * FROM tbl', { language: 'mysql' }));
 ```
