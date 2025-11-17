@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './snowflake.functions.js';
-import { keywords } from './snowflake.keywords.js';
+import { dataTypes, keywords } from './snowflake.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -25,12 +25,7 @@ const reservedClauses = expandPhrases([
   'VALUES',
   // - update:
   'SET',
-  // Data definition
-  // - view
-  'CREATE [OR REPLACE] [SECURE] [RECURSIVE] VIEW [IF NOT EXISTS]',
-  // - create/drop/merge table
-  'CREATE [OR REPLACE] [VOLATILE] TABLE [IF NOT EXISTS]',
-  'CREATE [OR REPLACE] [LOCAL | GLOBAL] {TEMP|TEMPORARY} TABLE [IF NOT EXISTS]',
+
   'CLUSTER BY',
   '[WITH] {MASKING POLICY | TAG | ROW ACCESS POLICY}',
   'COPY GRANTS',
@@ -41,7 +36,14 @@ const reservedClauses = expandPhrases([
   'WHEN NOT MATCHED THEN INSERT',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [OR REPLACE] [VOLATILE] TABLE [IF NOT EXISTS]',
+  'CREATE [OR REPLACE] [LOCAL | GLOBAL] {TEMP|TEMPORARY} TABLE [IF NOT EXISTS]',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE] [SECURE] [RECURSIVE] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE',
   // - delete:
@@ -66,8 +68,8 @@ const onelineClauses = expandPhrases([
   'DROP ALL ROW ACCESS POLICIES',
   '{SET | DROP} DEFAULT', // for alter column
   '{SET | DROP} NOT NULL', // for alter column
-  '[SET DATA] TYPE', // for alter column
-  '[UNSET] COMMENT', // for alter column
+  'SET DATA TYPE', // for alter column
+  'UNSET COMMENT', // for alter column
   '{SET | UNSET} MASKING POLICY', // for alter column
   // - truncate:
   'TRUNCATE [TABLE] [IF EXISTS]',
@@ -290,19 +292,24 @@ const reservedJoins = expandPhrases([
   '{CROSS | NATURAL} JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   '{ROWS | RANGE} BETWEEN',
   'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const snowflake: DialectOptions = {
+  name: 'snowflake',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     stringTypes: ['$$', `''-qq-bs`],
     identTypes: ['""-qq'],
@@ -322,14 +329,18 @@ export const snowflake: DialectOptions = {
       '::',
       // String concat
       '||',
-      // Get Path
-      ':',
       // Generators: https://docs.snowflake.com/en/sql-reference/functions/generator.html#generator
       '=>',
+      // Assignment https://docs.snowflake.com/en/sql-reference/snowflake-scripting/let
+      ':=',
+      // Lambda: https://docs.snowflake.com/en/user-guide/querying-semistructured#lambda-expressions
+      '->',
     ],
+    propertyAccessOperators: [':'],
   },
   formatOptions: {
-    alwaysDenseOperators: [':', '::'],
-    onelineClauses,
+    alwaysDenseOperators: ['::'],
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

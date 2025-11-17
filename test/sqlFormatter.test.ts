@@ -9,10 +9,26 @@ describe('sqlFormatter', () => {
     }).toThrow('Unsupported SQL dialect: blah');
   });
 
-  it('throws error when encountering unsupported characters', () => {
-    expect(() => {
-      format('SELECT «weird-stuff»');
-    }).toThrow('Parse error: Unexpected "«weird-stu" at line 1 column 8');
+  describe('when encountering unsupported characters with default dialect', () => {
+    it('throws error suggesting a use of a more specific dialect', () => {
+      expect(() => {
+        format('SELECT «weird-stuff»');
+      }).toThrow(
+        `Parse error: Unexpected "«weird-stu" at line 1 column 8.\n` +
+          `This likely happens because you're using the default "sql" dialect.\n` +
+          `If possible, please select a more specific dialect (like sqlite, postgresql, etc).`
+      );
+    });
+  });
+
+  describe('when encountering unsupported characters with sqlite dialect', () => {
+    it('throws error including the name of the used dialect', () => {
+      expect(() => {
+        format('SELECT «weird-stuff»', { language: 'sqlite' });
+      }).toThrow(
+        `Parse error: Unexpected "«weird-stu" at line 1 column 8.\nSQL dialect used: "sqlite".`
+      );
+    });
   });
 
   it('throws error when encountering incorrect SQL grammar', () => {
@@ -55,6 +71,18 @@ describe('sqlFormatter', () => {
     }).toThrow('aliasAs config is no more supported.');
   });
 
+  it('throws error when tabulateAlias config option used', () => {
+    expect(() => {
+      format('SELECT *', { tabulateAlias: false } as any);
+    }).toThrow('tabulateAlias config is no more supported.');
+  });
+
+  it('throws error when commaPosition config option used', () => {
+    expect(() => {
+      format('SELECT *', { commaPosition: 'before' } as any);
+    }).toThrow('commaPosition config is no more supported.');
+  });
+
   describe('formatDialect()', () => {
     it('allows passing Dialect config object as a dialect parameter', () => {
       expect(formatDialect('SELECT [foo], `bar`;', { dialect: sqlite })).toBe(dedent`
@@ -67,6 +95,7 @@ describe('sqlFormatter', () => {
     it('allows use of regex-based custom string type', () => {
       // Extend SQLite dialect with additional string type
       const sqliteWithTemplates: DialectOptions = {
+        name: 'myCustomDialect',
         tokenizerOptions: {
           ...sqlite.tokenizerOptions,
           stringTypes: [...sqlite.tokenizerOptions.stringTypes, { regex: String.raw`\{\{.*?\}\}` }],

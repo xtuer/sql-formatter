@@ -5,6 +5,7 @@ export enum NodeType {
   clause = 'clause',
   set_operation = 'set_operation',
   function_call = 'function_call',
+  parameterized_data_type = 'parameterized_data_type',
   array_subscript = 'array_subscript',
   property_access = 'property_access',
   parenthesis = 'parenthesis',
@@ -17,11 +18,13 @@ export enum NodeType {
   literal = 'literal',
   identifier = 'identifier',
   keyword = 'keyword',
+  data_type = 'data_type',
   parameter = 'parameter',
   operator = 'operator',
   comma = 'comma',
   line_comment = 'line_comment',
   block_comment = 'block_comment',
+  disable_comment = 'disable_comment',
 }
 
 interface BaseNode {
@@ -53,10 +56,16 @@ export interface FunctionCallNode extends BaseNode {
   parenthesis: ParenthesisNode;
 }
 
+export interface ParameterizedDataTypeNode extends BaseNode {
+  type: NodeType.parameterized_data_type;
+  dataType: DataTypeNode;
+  parenthesis: ParenthesisNode;
+}
+
 // <ident>[<expr>]
 export interface ArraySubscriptNode extends BaseNode {
   type: NodeType.array_subscript;
-  array: IdentifierNode | KeywordNode;
+  array: IdentifierNode | KeywordNode | DataTypeNode;
   parenthesis: ParenthesisNode;
 }
 
@@ -120,12 +129,20 @@ export interface LiteralNode extends BaseNode {
 export interface PropertyAccessNode extends BaseNode {
   type: NodeType.property_access;
   object: AstNode;
+  operator: string;
   property: IdentifierNode | ArraySubscriptNode | AllColumnsAsteriskNode;
 }
 
 export interface IdentifierNode extends BaseNode {
   type: NodeType.identifier;
+  quoted: boolean;
   text: string;
+}
+
+export interface DataTypeNode extends BaseNode {
+  type: NodeType.data_type;
+  text: string;
+  raw: string;
 }
 
 export interface KeywordNode extends BaseNode {
@@ -162,12 +179,19 @@ export interface BlockCommentNode extends BaseNode {
   precedingWhitespace: string;
 }
 
-export type CommentNode = LineCommentNode | BlockCommentNode;
+export interface DisableCommentNode extends BaseNode {
+  type: NodeType.disable_comment;
+  text: string;
+  precedingWhitespace: string;
+}
+
+export type CommentNode = LineCommentNode | BlockCommentNode | DisableCommentNode;
 
 export type AstNode =
   | ClauseNode
   | SetOperationNode
   | FunctionCallNode
+  | ParameterizedDataTypeNode
   | ArraySubscriptNode
   | PropertyAccessNode
   | ParenthesisNode
@@ -179,9 +203,11 @@ export type AstNode =
   | AllColumnsAsteriskNode
   | LiteralNode
   | IdentifierNode
+  | DataTypeNode
   | KeywordNode
   | ParameterNode
   | OperatorNode
   | CommaNode
   | LineCommentNode
-  | BlockCommentNode;
+  | BlockCommentNode
+  | DisableCommentNode;

@@ -22,12 +22,15 @@ import supportsDeleteFrom from './features/deleteFrom.js';
 import supportsTruncateTable from './features/truncateTable.js';
 import supportsMergeInto from './features/mergeInto.js';
 import supportsCreateView from './features/createView.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('HiveFormatter', () => {
   const language = 'hive';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
   supportsCreateView(format, { materialized: true, ifNotExists: true });
   supportsCreateTable(format, { ifNotExists: true });
@@ -46,10 +49,11 @@ describe('HiveFormatter', () => {
     supportsUsing: false,
   });
   supportsSetOperations(format, ['UNION', 'UNION ALL', 'UNION DISTINCT']);
-  supportsOperators(format, ['%', '~', '^', '|', '&', '<=>', '==', '!', '||']);
+  supportsOperators(format, ['%', '~', '^', '|', '&', '<=>', '==', '!', '||'], { any: true });
   supportsArrayAndMapAccessors(format);
   supportsWindow(format);
   supportsLimiting(format, { limit: true });
+  supportsDataTypeCase(format);
 
   // eslint-disable-next-line no-template-curly-in-string
   it('recognizes ${hivevar:name} substitution variables', () => {

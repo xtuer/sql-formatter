@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { EOF_TOKEN, isToken, Token, TokenType } from '../../lexer/token.js';
-import { keywords } from './spark.keywords.js';
+import { dataTypes, keywords } from './spark.keywords.js';
 import { functions } from './spark.functions.js';
 
 // http://spark.apache.org/docs/latest/sql-ref-syntax.html
@@ -32,12 +32,13 @@ const reservedClauses = expandPhrases([
   //   https://spark.apache.org/docs/latest/sql-ref-syntax-dml-load.html
   'LOAD DATA [LOCAL] INPATH',
   '[OVERWRITE] INTO TABLE',
-  // Data definition
-  'CREATE [OR REPLACE] [GLOBAL TEMPORARY | TEMPORARY] VIEW [IF NOT EXISTS]',
-  'CREATE [EXTERNAL] TABLE [IF NOT EXISTS]',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases(['CREATE [EXTERNAL] TABLE [IF NOT EXISTS]']);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE] [GLOBAL TEMPORARY | TEMPORARY] VIEW [IF NOT EXISTS]',
   // - drop table:
   'DROP TABLE [IF EXISTS]',
   // - alter table:
@@ -110,23 +111,28 @@ const reservedJoins = expandPhrases([
   'NATURAL [LEFT] {ANTI | SEMI} JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON DELETE',
   'ON UPDATE',
   'CURRENT ROW',
   '{ROWS | RANGE} BETWEEN',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 // http://spark.apache.org/docs/latest/sql-programming-guide.html
 export const spark: DialectOptions = {
+  name: 'spark',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     supportsXor: true,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     extraParens: ['[]'],
     stringTypes: [
@@ -136,12 +142,14 @@ export const spark: DialectOptions = {
       { quote: '""-raw', prefixes: ['R', 'X'], requirePrefix: true },
     ],
     identTypes: ['``'],
+    identChars: { allowFirstCharNumber: true },
     variableTypes: [{ quote: '{}', prefixes: ['$'], requirePrefix: true }],
     operators: ['%', '~', '^', '|', '&', '<=>', '==', '!', '||', '->'],
     postProcess,
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
 

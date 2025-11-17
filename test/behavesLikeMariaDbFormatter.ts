@@ -12,12 +12,14 @@ import supportsIdentifiers from './features/identifiers.js';
 import supportsInsertInto from './features/insertInto.js';
 import supportsUpdate from './features/update.js';
 import supportsTruncateTable from './features/truncateTable.js';
+import supportsNumbers from './features/numbers.js';
 
 /**
  * Shared tests for MySQL and MariaDB
  */
 export default function behavesLikeMariaDbFormatter(format: FormatFn) {
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format, { hashComments: true });
   supportsStrings(format, ["''-qq", "''-bs", '""-qq', '""-bs', "X''"]);
   supportsIdentifiers(format, ['``']);
@@ -45,6 +47,18 @@ export default function behavesLikeMariaDbFormatter(format: FormatFn) {
           12345e,
           12e45,
           $567
+        FROM
+          tbl
+      `
+    );
+  });
+
+  // regression test for sql-formatter#651
+  it('supports unicode identifiers that start with numbers', () => {
+    expect(format('SELECT 1ä FROM tbl')).toBe(
+      dedent`
+        SELECT
+          1ä
         FROM
           tbl
       `
@@ -114,6 +128,67 @@ export default function behavesLikeMariaDbFormatter(format: FormatFn) {
       VALUES
         (1, 'Leopard'),
         (2, 'Dog');
+    `);
+  });
+
+  // Issue #605
+  it('supports INSERT ... ON DUPLICATE KEY UPDATE', () => {
+    expect(
+      format(`INSERT INTO customer VALUES ('John','Doe') ON DUPLICATE KEY UPDATE fname='Untitled';`)
+    ).toBe(dedent`
+      INSERT INTO
+        customer
+      VALUES
+        ('John', 'Doe')
+      ON DUPLICATE KEY UPDATE
+        fname = 'Untitled';
+    `);
+  });
+
+  it('supports INSERT ... ON DUPLICATE KEY UPDATE + VALUES() function', () => {
+    expect(
+      format(`INSERT INTO customer VALUES ('John','Doe') ON DUPLICATE KEY UPDATE col=VALUES(col2);`)
+    ).toBe(dedent`
+      INSERT INTO
+        customer
+      VALUES
+        ('John', 'Doe')
+      ON DUPLICATE KEY UPDATE
+        col = VALUES(col2);
+    `);
+  });
+
+  // Issue #629
+  it('uppercases only reserved keywords', () => {
+    expect(
+      format(
+        `create table account (id int comment 'the most important column');
+        select * from mysql.user;
+        insert into user (id, name) values (1, 'Blah');`,
+        {
+          keywordCase: 'upper',
+          dataTypeCase: 'upper',
+        }
+      )
+    ).toBe(dedent`
+      CREATE TABLE account (id INT comment 'the most important column');
+
+      SELECT
+        *
+      FROM
+        mysql.user;
+
+      INSERT INTO
+        user (id, name)
+      VALUES
+        (1, 'Blah');
+    `);
+  });
+
+  // Issue #674
+  it('supports *.* syntax in GRANT statement', () => {
+    expect(format(`GRANT ALL ON *.* TO user2;`)).toBe(dedent`
+      GRANT ALL ON *.* TO user2;
     `);
   });
 }

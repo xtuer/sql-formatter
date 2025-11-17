@@ -1,4 +1,4 @@
-<a href='https://github.com/sql-formatter-org/sql-formatter'><img src="static/prettier-sql-clean.svg" width="128"/></a>
+<a href='https://github.com/sql-formatter-org/sql-formatter'><img src="static/sql-formatter-icon.png" width="64"/></a>
 
 # SQL Formatter [![NPM version](https://img.shields.io/npm/v/sql-formatter.svg)](https://npmjs.com/package/sql-formatter) ![Build status](https://img.shields.io/github/actions/workflow/status/sql-formatter-org/sql-formatter/coveralls.yaml) [![Coverage Status](https://coveralls.io/repos/github/sql-formatter-org/sql-formatter/badge.svg?branch=master)](https://coveralls.io/github/sql-formatter-org/sql-formatter?branch=master)
 
@@ -7,7 +7,7 @@
 It started as a port of a [PHP Library][], but has since considerably diverged.
 
 It supports various SQL dialects:
-GCP BigQuery, IBM DB2, Apache Hive, MariaDB, MySQL, Couchbase N1QL, Oracle PL/SQL, PostgreSQL, Amazon Redshift, SingleStoreDB, Snowflake, Spark, SQL Server Transact-SQL, Trino (and Presto).
+GCP BigQuery, IBM DB2, DuckDB, Apache Hive, MariaDB, MySQL, TiDB, Couchbase N1QL, Oracle PL/SQL, PostgreSQL, Amazon Redshift, SingleStoreDB, Snowflake, Spark, SQL Server Transact-SQL, Trino (and Presto).
 See [language option docs](docs/language.md) for more details.
 
 It does not support:
@@ -22,13 +22,13 @@ It does not support:
 Get the latest version from NPM:
 
 ```sh
-npm install sql-formatter-ast
+npm install sql-formatter
 ```
 
 Also available with yarn:
 
 ```sh
-yarn add sql-formatter-ast
+yarn add sql-formatter
 ```
 
 ## Usage
@@ -36,7 +36,7 @@ yarn add sql-formatter-ast
 ### Usage as library
 
 ```js
-import { format } from 'sql-formatter-ast';
+import { format } from 'sql-formatter';
 
 console.log(format('SELECT * FROM tbl', { language: 'mysql' }));
 ```
@@ -60,6 +60,34 @@ format('SELECT * FROM tbl', {
   linesBetweenQueries: 2,
 });
 ```
+
+### Disabling the formatter
+
+You can disable the formatter for a section of SQL by surrounding it with disable/enable comments:
+
+```sql
+/* sql-formatter-disable */
+SELECT * FROM tbl1;
+/* sql-formatter-enable */
+SELECT * FROM tbl2;
+```
+
+which produces:
+
+```sql
+/* sql-formatter-disable */
+SELECT * FROM tbl1;
+/* sql-formatter-enable */
+SELECT
+  *
+FROM
+  tbl2;
+```
+
+The formatter doesn't even parse the code between these comments.
+So in case there's some SQL that happens to crash SQL Formatter,
+you can comment the culprit out (at least until the issue gets
+fixed in SQL Formatter).
 
 ### Placeholders replacement
 
@@ -95,7 +123,7 @@ sql-formatter -h
 
 ```
 usage: sql-formatter [-h] [-o OUTPUT] \
-[-l {bigquery,db2,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,snowflake,spark,sql,sqlite,transactsql,trino,tsql}] [-c CONFIG] [--version] [FILE]
+[-l {bigquery,db2,db2i,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,snowflake,spark,sql,sqlite,tidb,transactsql,trino,tsql}] [-c CONFIG] [--version] [FILE]
 
 SQL Formatter
 
@@ -107,10 +135,10 @@ optional arguments:
   -o, --output    OUTPUT
                     File to write SQL output (defaults to stdout)
   --fix           Update the file in-place
-  -l, --language  {bigquery,db2,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,snowflake,spark,sql,sqlite,trino,tsql}
+  -l, --language  {bigquery,db2,db2i,hive,mariadb,mysql,n1ql,plsql,postgresql,redshift,singlestoredb,snowflake,spark,sql,sqlite,tidb,trino,tsql}
                     SQL dialect (defaults to basic sql)
   -c, --config    CONFIG
-                    Path to config json file (will use default configs if unspecified)
+                    Path to config JSON file or json string (will find a file named '.sql-formatter.json' or use default configs if unspecified)
   --version       show program's version number and exit
 ```
 
@@ -130,7 +158,7 @@ where
   id = 3
 ```
 
-The tool also accepts a JSON config file with the `--config` option that takes this form:
+The tool also accepts a JSON config file named .sql-formatter.json in the current or any parent directory, or with the `--config` option that takes this form:
 
 ```json
 {
@@ -150,10 +178,11 @@ All fields are optional and all fields that are not specified will be filled wit
 - [**`tabWidth`**](docs/tabWidth.md) amount of indentation to use.
 - [**`useTabs`**](docs/useTabs.md) to use tabs for indentation.
 - [**`keywordCase`**](docs/keywordCase.md) uppercases or lowercases keywords.
-- [**`indentStyle`**](docs/indentStyle.md) defines overall indentation style.
+- [**`dataTypeCase`**](docs/dataTypeCase.md) uppercases or lowercases data types.
+- [**`functionCase`**](docs/functionCase.md) uppercases or lowercases function names.
+- [**`identifierCase`**](docs/identifierCase.md) uppercases or lowercases identifiers. (**experimental!**)
+- [**`indentStyle`**](docs/indentStyle.md) defines overall indentation style. (**deprecated!**)
 - [**`logicalOperatorNewline`**](docs/logicalOperatorNewline.md) newline before or after boolean operator (AND, OR, XOR).
-- [**`tabulateAlias`**](docs/tabulateAlias.md) aligns column aliases vertically (**deprecated!**).
-- [**`commaPosition`**](docs/commaPosition.md) where to place the comma in column lists (**deprecated!**).
 - [**`expressionWidth`**](docs/expressionWidth.md) maximum number of characters in parenthesized expressions to be kept on single line.
 - [**`linesBetweenQueries`**](docs/linesBetweenQueries.md) how many newlines to insert between queries.
 - [**`denseOperators`**](docs/denseOperators.md) packs operators densely without spaces.
@@ -168,10 +197,14 @@ This makes SQL Formatter available as a global variable `window.sqlFormatter`.
 
 ### Usage in editors
 
-- [VSCode extension](https://marketplace.visualstudio.com/items?itemName=inferrinizzard.prettier-sql-vscode)
+- [VSCode extension](https://marketplace.visualstudio.com/items?itemName=ReneSaarsoo.sql-formatter-vsc)
   - [Repo](https://github.com/sql-formatter-org/sql-formatter-vscode)
 - [Vim extension](https://github.com/fannheyward/coc-sql/)
 - [Prettier plugin](https://github.com/un-ts/prettier/tree/master/packages/sql)
+
+### Usage as ESLint plugin
+
+- Inside `eslint-plugin-sql` by using the rule [eslint-plugin-sql#format](https://github.com/gajus/eslint-plugin-sql#format).
 
 ## Frequently Asked Questions
 
@@ -191,11 +224,11 @@ pick the proper dialect, like:
 format('select [col] from tbl', { language: 'transactsql' });
 ```
 
-Or when using the VSCode extension: Settings -> Prettier-SQL: SQLFlavourOverride.
+Or when using the VSCode extension: Settings -> SQL-Formatter-VSCode: SQLFlavourOverride.
 
 ### Module parse failed: Unexpected token
 
-This typically happens when bundling an appication with Webpack.
+This typically happens when bundling an application with Webpack.
 The cause is that Babel (through `babel-loader`) is not configured
 to support class properties syntax:
 
@@ -213,6 +246,35 @@ Possible fixes:
 - Switch to `@babel/preset-env`
 - Include plugin `@babel/plugin-proposal-class-properties`
 
+### I'm having a problem with Prettier SQL VSCode extension
+
+The [Prettier SQL VSCode](https://marketplace.visualstudio.com/items?itemName=inferrinizzard.prettier-sql-vscode)
+extension is no more maintained by its author.
+
+Please use the official [SQL Formatter VSCode](https://marketplace.visualstudio.com/items?itemName=ReneSaarsoo.sql-formatter-vsc)
+extension to get the latest fixes from SQL Formatter library.
+
+### My SQL contains templating syntax which SQL Formatter fails to parse
+
+For example, you might have an SQL like:
+
+```sql
+SELECT {col1}, {col2} FROM {tablename}
+```
+
+While templating is not directly supported by SQL Formatter, the workaround
+is to use [paramTypes](docs/paramTypes.md) config option to treat these
+occurrences of templating constructs as prepared-statement parameter-placeholders:
+
+```js
+format('SELECT {col1}, {col2} FROM {tablename};', {
+  paramTypes: { custom: [{ regex: String.raw`\{\w+\}` }] },
+});
+```
+
+This won't work for all possible templating constructs,
+but should solve the most common use cases.
+
 ## The future
 
 The development of this formatter is currently in maintenance mode.
@@ -221,7 +283,7 @@ Bugs will get fixed if feasible, but new features will likely not be added.
 I have started a new SQL formatting tool: [prettier-plugin-sql-cst][].
 
 - It solves several problems which can't be fixed in SQL Formatter because
-  of fundamental problems in its arhictecture.
+  of fundamental problems in its architecture.
 - It makes use of the Prettier layout algorithm,
   doing a better job of splitting long expressions to multiple lines.
 - It takes much more opinionated approach to SQL formatting,

@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './trino.functions.js';
-import { keywords } from './trino.keywords.js';
+import { dataTypes, keywords } from './trino.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -25,9 +25,6 @@ const reservedClauses = expandPhrases([
   'VALUES',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [OR REPLACE] [MATERIALIZED] VIEW',
-  'CREATE TABLE [IF NOT EXISTS]',
   // MATCH_RECOGNIZE
   'MATCH_RECOGNIZE',
   'MEASURES',
@@ -39,7 +36,11 @@ const reservedClauses = expandPhrases([
   'DEFINE',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases(['CREATE TABLE [IF NOT EXISTS]']);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE] [MATERIALIZED] VIEW',
   // - update:
   'UPDATE',
   // - delete:
@@ -75,8 +76,6 @@ const onelineClauses = expandPhrases([
   'EXPLAIN ANALYZE VERBOSE',
   'USE',
 
-  'COMMENT ON TABLE',
-  'COMMENT ON COLUMN',
   'DESCRIBE INPUT',
   'DESCRIBE OUTPUT',
 
@@ -120,20 +119,25 @@ const reservedJoins = expandPhrases([
   'NATURAL {LEFT | RIGHT | FULL} [OUTER] JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   '{ROWS | RANGE | GROUPS} BETWEEN',
   // comparison operator
   'IS [NOT] DISTINCT FROM',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const trino: DialectOptions = {
+  name: 'trino',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     // Trino also supports {- ... -} parenthesis.
     // The formatting of these currently works out as a result of { and -
@@ -163,6 +167,7 @@ export const trino: DialectOptions = {
     ],
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

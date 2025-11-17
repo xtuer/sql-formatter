@@ -6,8 +6,6 @@ import { createParser } from '../parser/createParser.js';
 import { StatementNode } from '../parser/ast.js';
 import { Dialect } from '../dialect.js';
 
-import formatCommaPositions from './formatCommaPositions.js';
-import formatAliasPositions from './formatAliasPositions.js';
 import ExpressionFormatter from './ExpressionFormatter.js';
 import Layout, { WS } from './Layout.js';
 import Indentation from './Indentation.js';
@@ -32,9 +30,7 @@ export default class Formatter {
   public format(query: string): string {
     const ast = this.parse(query);
     const formattedQuery = this.formatAst(ast);
-    const finalQuery = this.postFormat(formattedQuery);
-
-    return finalQuery.trimEnd();
+    return formattedQuery.trimEnd();
   }
 
   public getAst(query: string) {
@@ -68,16 +64,5 @@ export default class Formatter {
       layout.add(WS.NO_NEWLINE, ';');
     }
     return layout.toString();
-  }
-
-  private postFormat(query: string): string {
-    if (this.cfg.tabulateAlias) {
-      query = formatAliasPositions(query);
-    }
-    if (this.cfg.commaPosition === 'before' || this.cfg.commaPosition === 'tabular') {
-      query = formatCommaPositions(query, this.cfg.commaPosition, indentString(this.cfg));
-    }
-
-    return query;
   }
 }

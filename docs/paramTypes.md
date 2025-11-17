@@ -66,7 +66,7 @@ An object with the following following optional fields:
 - **`numbered`**: `Array<"?" | ":" | "$">`. To allow for `?1`, `:2` and/or `$3` syntax for numbered placholders.
 - **`named`**: `Array<":" | "@" | "$">`. To allow for `:name`, `@name` and/or `$name` syntax for named placholders.
 - **`quoted`**: `Array<":" | "@" | "$">`. To allow for `:"name"`, `@"name"` and/or `$"name"` syntax for quoted placholders.
-  Note that the type of quotes dependes on the quoted identifiers supported by a dialect.
+  Note that the type of quotes depends on the quoted identifiers supported by a dialect.
   For example in MySQL using `paramTypes: {quoted: [':']}` would allow you to use `` :`name` `` syntax,
   while in Transact-SQL `:"name"` and `:[name]` would work instead.
   See [identifier syntax wiki page][] for information about differences in support quoted identifiers.
@@ -103,7 +103,7 @@ You can define a regex pattern to match the custom parameters:
 
 ```js
 paramTypes: {
-  custom: [{ regex: '\\{[a-zA-Z0-9_]+\\}' }];
+  custom: [{ regex: '\\{[a-zA-Z0-9_]+\\}' }],
 }
 ```
 
@@ -111,7 +111,7 @@ Note the double backslashes. You can get around the double-escaping problem by u
 
 ```js
 paramTypes: {
-  custom: [{ regex: String.raw`\{[a-zA-Z0-9_]+\}` }];
+  custom: [{ regex: String.raw`\{[a-zA-Z0-9_]+\}` }],
 }
 ```
 

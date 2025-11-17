@@ -22,12 +22,16 @@ import supportsInsertInto from './features/insertInto.js';
 import supportsUpdate from './features/update.js';
 import supportsCreateView from './features/createView.js';
 import supportsOnConflict from './features/onConflict.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
+import supportsReturning from './features/returning.js';
 
 describe('SqliteFormatter', () => {
   const language = 'sqlite';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
   supportsCreateView(format, { ifNotExists: true });
   supportsCreateTable(format, { ifNotExists: true });
@@ -41,6 +45,7 @@ describe('SqliteFormatter', () => {
   });
   supportsDeleteFrom(format);
   supportsInsertInto(format);
+  supportsReturning(format);
   supportsOnConflict(format);
   supportsUpdate(format);
   supportsStrings(format, ["''-qq", "X''"]);
@@ -53,6 +58,7 @@ describe('SqliteFormatter', () => {
   supportsParams(format, { positional: true, numbered: ['?'], named: [':', '$', '@'] });
   supportsWindow(format);
   supportsLimiting(format, { limit: true, offset: true });
+  supportsDataTypeCase(format);
 
   it('supports REPLACE INTO syntax', () => {
     expect(format(`REPLACE INTO tbl VALUES (1,'Leopard'),(2,'Dog');`)).toBe(dedent`
@@ -61,6 +67,19 @@ describe('SqliteFormatter', () => {
       VALUES
         (1, 'Leopard'),
         (2, 'Dog');
+    `);
+  });
+
+  it('supports ON CONFLICT .. DO UPDATE syntax', () => {
+    expect(format(`INSERT INTO tbl VALUES (1,'Leopard') ON CONFLICT DO UPDATE SET foo=1;`))
+      .toBe(dedent`
+      INSERT INTO
+        tbl
+      VALUES
+        (1, 'Leopard')
+      ON CONFLICT DO UPDATE
+      SET
+        foo = 1;
     `);
   });
 });

@@ -23,12 +23,15 @@ import supportsInsertInto from './features/insertInto.js';
 import supportsUpdate from './features/update.js';
 import supportsTruncateTable from './features/truncateTable.js';
 import supportsCreateView from './features/createView.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('SqlFormatter', () => {
   const language = 'sql';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
   supportsCreateView(format);
   supportsCreateTable(format);
@@ -50,10 +53,11 @@ describe('SqlFormatter', () => {
   supportsSchema(format);
   supportsJoin(format);
   supportsSetOperations(format);
-  supportsOperators(format, ['||']);
+  supportsOperators(format, ['||'], { any: true });
   supportsParams(format, { positional: true });
   supportsWindow(format);
   supportsLimiting(format, { limit: true, offset: true, fetchFirst: true, fetchNext: true });
+  supportsDataTypeCase(format);
 
   it('throws error when encountering characters or operators it does not recognize', () => {
     expect(() => format('SELECT @name, :bar FROM foo;')).toThrowError(
@@ -68,6 +72,20 @@ describe('SqlFormatter', () => {
           {foo};
       `)
     ).toThrowError('Parse error: Unexpected "{foo};" at line 2 column 3');
+  });
+
+  // Issue #702
+  it('treats ASC and DESC as reserved keywords', () => {
+    expect(format(`SELECT foo FROM bar ORDER BY foo asc, zap desc`, { keywordCase: 'upper' }))
+      .toBe(dedent`
+        SELECT
+          foo
+        FROM
+          bar
+        ORDER BY
+          foo ASC,
+          zap DESC
+      `);
   });
 
   it('formats ALTER TABLE ... ALTER COLUMN', () => {

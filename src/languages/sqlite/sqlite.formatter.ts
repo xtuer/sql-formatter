@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './sqlite.functions.js';
-import { keywords } from './sqlite.keywords.js';
+import { dataTypes, keywords } from './sqlite.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -24,12 +24,15 @@ const reservedClauses = expandPhrases([
   'VALUES',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [TEMPORARY | TEMP] VIEW [IF NOT EXISTS]',
-  'CREATE [TEMPORARY | TEMP] TABLE [IF NOT EXISTS]',
+  // other:
+  'RETURNING',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases(['CREATE [TEMPORARY | TEMP] TABLE [IF NOT EXISTS]']);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [TEMPORARY | TEMP] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE [OR ABORT | OR FAIL | OR IGNORE | OR REPLACE | OR ROLLBACK]',
   // - insert:
@@ -59,19 +62,25 @@ const reservedJoins = expandPhrases([
   'NATURAL {LEFT | RIGHT | FULL} [OUTER] JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
   '{ROWS | RANGE | GROUPS} BETWEEN',
+  'DO UPDATE',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const sqlite: DialectOptions = {
+  name: 'sqlite',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     stringTypes: [
       "''-qq",
@@ -85,6 +94,7 @@ export const sqlite: DialectOptions = {
     operators: ['%', '~', '&', '|', '<<', '>>', '==', '->', '->>', '||'],
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

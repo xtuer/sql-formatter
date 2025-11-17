@@ -14,7 +14,7 @@
     />
     <meta property="og:url" content="https://sql-formatter-org.github.io/sql-formatter" />
 
-    <link rel="shortcut icon" href="./prettier-sql-clean.svg" />
+    <link rel="shortcut icon" href="./sql-formatter-icon.png" />
 
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet" />
 
@@ -23,7 +23,7 @@
 
   <body>
     <header>
-      <img src="./prettier-sql-clean.svg" height="32" width="32" alt="logo" />
+      <img src="./sql-formatter-icon.png" height="32" width="32" alt="logo" />
       <h1 class="title">SQL Formatter</h1>
 
       <div class="buttons">
@@ -60,9 +60,12 @@
               <option value="redshift">AWS Redshift</option>
               <option value="bigquery">BigQuery</option>
               <option value="db2">DB2</option>
+              <option value="db2i">DB2 for IBM i</option>
+              <option value="duckdb">DuckDB</option>
               <option value="hive">Hive</option>
               <option value="mariadb">MariaDB</option>
               <option value="mysql">MySQL</option>
+              <option value="tidb">TiDB</option>
               <option value="n1ql">N1QL</option>
               <option value="plsql">PL/SQL</option>
               <option value="postgresql">PostgreSQL</option>
@@ -75,11 +78,35 @@
             </select>
           </article>
           <article class="config">
-            <label for="keywordCase">Case:</label>
+            <label for="keywordCase">Keyword case:</label>
             <select id="keywordCase">
               <option value="preserve">Preserve</option>
-              <option value="upper">Uppercase</option>
-              <option value="lower">Lowercase</option>
+              <option value="upper">Upper</option>
+              <option value="lower">Lower</option>
+            </select>
+          </article>
+          <article class="config">
+            <label for="dataTypeCase">Data type case:</label>
+            <select id="dataTypeCase">
+              <option value="preserve">Preserve</option>
+              <option value="upper">Upper</option>
+              <option value="lower">Lower</option>
+            </select>
+          </article>
+          <article class="config">
+            <label for="functionCase">Function case:</label>
+            <select id="functionCase">
+              <option value="preserve">Preserve</option>
+              <option value="upper">Upper</option>
+              <option value="lower">Lower</option>
+            </select>
+          </article>
+          <article class="config">
+            <label for="identifierCase">Identifier case:</label>
+            <select id="identifierCase">
+              <option value="preserve">Preserve</option>
+              <option value="upper">Upper</option>
+              <option value="lower">Lower</option>
             </select>
           </article>
           <article class="config">
@@ -95,18 +122,6 @@
             <select id="logicalOperatorNewline">
               <option value="before">before</option>
               <option value="after">after</option>
-            </select>
-          </article>
-          <article class="config">
-            <label for="tabulateAlias">Align aliases</label>
-            <input type="checkbox" id="tabulateAlias" name="tabulateAlias" />
-          </article>
-          <article class="config">
-            <label for="commaPosition">Comma position:</label>
-            <select id="commaPosition">
-              <option value="after">After</option>
-              <option value="before">Before</option>
-              <option value="tabular">Tabular</option>
             </select>
           </article>
           <article class="config">

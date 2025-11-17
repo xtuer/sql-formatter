@@ -66,9 +66,14 @@ export interface TokenizerOptions {
   reservedJoins: string[];
   // These are essentially multi-word sequences of keywords,
   // that we prioritize over all other keywords (RESERVED_* tokens)
-  reservedPhrases?: string[];
+  reservedKeywordPhrases?: string[];
+  // These are essentially multi-word sequences of keywords,
+  // that we prioritize over all other keywords (RESERVED_* tokens)
+  reservedDataTypePhrases?: string[];
   // built in function names
   reservedFunctionNames: string[];
+  // data types
+  reservedDataTypes: string[];
   // all other reserved words (not included to any of the above lists)
   reservedKeywords: string[];
   // Types of quotes to use for strings
@@ -93,6 +98,13 @@ export interface TokenizerOptions {
   paramChars?: IdentChars;
   // Additional multi-character operators to support, in addition to <=, >=, <>, !=
   operators?: string[];
+  // Additional operators for property access, in addition to .
+  // Like in table.column
+  propertyAccessOperators?: string[];
+  // Enables PostgreSQL-specific OPERATOR(...) syntax
+  operatorKeyword?: boolean;
+  // True to support underscores in number literals (e.g., 1_000_000)
+  underscoresInNumbers?: boolean;
   // Allows custom modifications on the token array.
   // Called after the whole input string has been split into tokens.
   // The result of this will be the output of the tokenizer.

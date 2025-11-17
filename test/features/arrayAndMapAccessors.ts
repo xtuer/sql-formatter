@@ -23,6 +23,18 @@ export default function supportsArrayAndMapAccessors(format: FormatFn) {
     `);
   });
 
+  it('supports square brackets for map lookup - uppercase', () => {
+    const result = format(`SELECT Alpha['a'], Beta['gamma'].zeTa, yotA['foo.bar-baz'];`, {
+      identifierCase: 'upper',
+    });
+    expect(result).toBe(dedent`
+      SELECT
+        ALPHA['a'],
+        BETA['gamma'].ZETA,
+        YOTA['foo.bar-baz'];
+    `);
+  });
+
   it('supports namespaced array identifiers', () => {
     const result = format(`SELECT foo.coalesce['blah'];`);
     expect(result).toBe(dedent`
@@ -44,6 +56,17 @@ export default function supportsArrayAndMapAccessors(format: FormatFn) {
     expect(result).toBe(dedent`
       SELECT
         foo./* comment */ arr[1];
+    `);
+  });
+
+  it('changes case of array accessors when identifierCase option used', () => {
+    expect(format(`SELECT arr[1];`, { identifierCase: 'upper' })).toBe(dedent`
+      SELECT
+        ARR[1];
+    `);
+    expect(format(`SELECT NS.Arr[1];`, { identifierCase: 'lower' })).toBe(dedent`
+      SELECT
+        ns.arr[1];
     `);
   });
 }

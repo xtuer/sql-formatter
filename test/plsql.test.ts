@@ -15,6 +15,7 @@ import supportsReturning from './features/returning.js';
 import supportsConstraints from './features/constraints.js';
 import supportsDeleteFrom from './features/deleteFrom.js';
 import supportsComments from './features/comments.js';
+import supportsCommentOn from './features/commentOn.js';
 import supportsIdentifiers from './features/identifiers.js';
 import supportsParams from './options/param.js';
 import supportsSetOperations from './features/setOperations.js';
@@ -24,13 +25,17 @@ import supportsUpdate from './features/update.js';
 import supportsTruncateTable from './features/truncateTable.js';
 import supportsMergeInto from './features/mergeInto.js';
 import supportsCreateView from './features/createView.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('PlSqlFormatter', () => {
   const language = 'plsql';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
+  supportsCommentOn(format);
   supportsCreateView(format, { orReplace: true, materialized: true });
   supportsCreateTable(format);
   supportsDropTable(format);
@@ -55,13 +60,17 @@ describe('PlSqlFormatter', () => {
     format,
     // Missing: '..' operator
     ['**', ':=', '%', '~=', '^=', '>>', '<<', '=>', '||'],
-    ['AND', 'OR', 'XOR']
+    {
+      logicalOperators: ['AND', 'OR', 'XOR'],
+      any: true,
+    }
   );
   supportsJoin(format, { supportsApply: true });
   supportsSetOperations(format, ['UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT']);
   supportsReturning(format);
   supportsParams(format, { numbered: [':'], named: [':'] });
   supportsLimiting(format, { offset: true, fetchFirst: true, fetchNext: true });
+  supportsDataTypeCase(format);
 
   it('recognizes _, $, # as part of identifiers', () => {
     const result = format('SELECT my_col$1#, col.a$, type#, procedure$, user# FROM tbl;');
@@ -77,11 +86,13 @@ describe('PlSqlFormatter', () => {
     `);
   });
 
-  // Parameters don't allow the same characters as identifiers
-  it('does not support #, $ in named parameters', () => {
-    expect(() => format('SELECT :col$foo')).toThrowError(`Parse error: Unexpected "$foo"`);
-
-    expect(() => format('SELECT :col#foo')).toThrowError(`Parse error: Unexpected "#foo"`);
+  // Issue #822
+  it('supports #, $ in named parameters', () => {
+    expect(format('SELECT :col$foo, :col#foo')).toBe(dedent`
+      SELECT
+        :col$foo,
+        :col#foo
+    `);
   });
 
   it('supports &name substitution variables', () => {

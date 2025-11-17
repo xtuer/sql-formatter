@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
-import { EOF_TOKEN, isToken, Token, TokenType } from '../../lexer/token.js';
-import { keywords } from './mariadb.keywords.js';
+import { postProcess } from './likeMariaDb.js';
+import { dataTypes, keywords } from './mariadb.keywords.js';
 import { functions } from './mariadb.functions.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT | DISTINCTROW]']);
@@ -23,16 +23,20 @@ const reservedClauses = expandPhrases([
   'INSERT [LOW_PRIORITY | DELAYED | HIGH_PRIORITY] [IGNORE] [INTO]',
   'REPLACE [LOW_PRIORITY | DELAYED] [INTO]',
   'VALUES',
+  'ON DUPLICATE KEY UPDATE',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [OR REPLACE] [SQL SECURITY DEFINER | SQL SECURITY INVOKER] VIEW [IF NOT EXISTS]',
-  'CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT EXISTS]',
   // other
   'RETURNING',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT EXISTS]',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE] [SQL SECURITY DEFINER | SQL SECURITY INVOKER] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE [LOW_PRIORITY] [IGNORE]',
   // - delete:
@@ -256,22 +260,28 @@ const reservedJoins = expandPhrases([
   'STRAIGHT_JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
   'CHARACTER SET',
   '{ROWS | RANGE} BETWEEN',
+  'IDENTIFIED BY',
 ]);
+
+const reservedDataTypePhrases = expandPhrases([]);
 
 // For reference: https://mariadb.com/kb/en/sql-statements-structure/
 export const mariadb: DialectOptions = {
+  name: 'mariadb',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     supportsXor: true,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     // TODO: support _ char set prefixes such as _utf8, _latin1, _binary, _utf8mb4, etc.
     stringTypes: [
@@ -289,21 +299,25 @@ export const mariadb: DialectOptions = {
     ],
     paramTypes: { positional: true },
     lineCommentTypes: ['--', '#'],
-    operators: ['%', ':=', '&', '|', '^', '~', '<<', '>>', '<=>', '&&', '||', '!'],
+    operators: [
+      '%',
+      ':=',
+      '&',
+      '|',
+      '^',
+      '~',
+      '<<',
+      '>>',
+      '<=>',
+      '&&',
+      '||',
+      '!',
+      '*.*', // Not actually an operator
+    ],
     postProcess,
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
-
-function postProcess(tokens: Token[]) {
-  return tokens.map((token, i) => {
-    const nextToken = tokens[i + 1] || EOF_TOKEN;
-    if (isToken.SET(token) && nextToken.text === '(') {
-      // This is SET datatype, not SET statement
-      return { ...token, type: TokenType.RESERVED_FUNCTION_NAME };
-    }
-    return token;
-  });
-}

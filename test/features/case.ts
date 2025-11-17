@@ -5,14 +5,14 @@ import { FormatFn } from '../../src/sqlFormatter.js';
 export default function supportsCase(format: FormatFn) {
   it('formats CASE ... WHEN with a blank expression', () => {
     const result = format(
-      "CASE WHEN option = 'foo' THEN 1 WHEN option = 'bar' THEN 2 WHEN option = 'baz' THEN 3 ELSE 4 END;"
+      "CASE WHEN opt = 'foo' THEN 1 WHEN opt = 'bar' THEN 2 WHEN opt = 'baz' THEN 3 ELSE 4 END;"
     );
 
     expect(result).toBe(dedent`
       CASE
-        WHEN option = 'foo' THEN 1
-        WHEN option = 'bar' THEN 2
-        WHEN option = 'baz' THEN 3
+        WHEN opt = 'foo' THEN 1
+        WHEN opt = 'bar' THEN 2
+        WHEN opt = 'baz' THEN 3
         ELSE 4
       END;
     `);
@@ -53,11 +53,11 @@ export default function supportsCase(format: FormatFn) {
   });
 
   it('recognizes lowercase CASE ... END', () => {
-    const result = format("case when option = 'foo' then 1 else 2 end;");
+    const result = format("case when opt = 'foo' then 1 else 2 end;");
 
     expect(result).toBe(dedent`
       case
-        when option = 'foo' then 1
+        when opt = 'foo' then 1
         else 2
       end;
     `);
@@ -79,7 +79,10 @@ export default function supportsCase(format: FormatFn) {
   it('properly converts to uppercase in case statements', () => {
     const result = format(
       "case trim(sqrt(my_field)) when 'one' then 1 when 'two' then 2 when 'three' then 3 else 4 end;",
-      { keywordCase: 'upper' }
+      {
+        keywordCase: 'upper',
+        functionCase: 'upper',
+      }
     );
     expect(result).toBe(dedent`
       CASE TRIM(SQRT(my_field))
@@ -196,5 +199,18 @@ export default function supportsCase(format: FormatFn) {
       FROM
         tbl;
     `);
+  });
+
+  it('formats between inside case expression', () => {
+    const result = format(`
+    SELECT CASE WHEN x1 BETWEEN 1 AND 12 THEN '' END c1;
+  `);
+
+    expect(result).toBe(dedent`
+    SELECT
+      CASE
+        WHEN x1 BETWEEN 1 AND 12  THEN ''
+      END c1;
+  `);
   });
 }

@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
-import { EOF_TOKEN, isToken, Token, TokenType } from '../../lexer/token.js';
-import { keywords } from './singlestoredb.keywords.js';
+import { postProcess } from '../mariadb/likeMariaDb.js';
+import { dataTypes, keywords } from './singlestoredb.keywords.js';
 import { functions } from './singlestoredb.functions.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT | DISTINCTROW]']);
@@ -22,16 +22,21 @@ const reservedClauses = expandPhrases([
   'INSERT [IGNORE] [INTO]',
   'VALUES',
   'REPLACE [INTO]',
+  'ON DUPLICATE KEY UPDATE',
   // - update:
   'SET',
   // Data definition
-  'CREATE VIEW',
-  'CREATE [ROWSTORE] [REFERENCE | TEMPORARY | GLOBAL TEMPORARY] TABLE [IF NOT EXISTS]',
   'CREATE [OR REPLACE] [TEMPORARY] PROCEDURE [IF NOT EXISTS]',
   'CREATE [OR REPLACE] [EXTERNAL] FUNCTION',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [ROWSTORE] [REFERENCE | TEMPORARY | GLOBAL TEMPORARY] TABLE [IF NOT EXISTS]',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE VIEW',
   // - update:
   'UPDATE',
   // - delete:
@@ -224,21 +229,27 @@ const reservedJoins = expandPhrases([
   'STRAIGHT_JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON DELETE',
   'ON UPDATE',
   'CHARACTER SET',
   '{ROWS | RANGE} BETWEEN',
+  'IDENTIFIED BY',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const singlestoredb: DialectOptions = {
+  name: 'singlestoredb',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     // TODO: support _binary"some string" prefix
     stringTypes: [
@@ -269,22 +280,13 @@ export const singlestoredb: DialectOptions = {
       '::%',
       ':>',
       '!:>',
+      '*.*', // Not actually an operator
     ],
     postProcess,
   },
   formatOptions: {
     alwaysDenseOperators: ['::', '::$', '::%'],
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
-
-function postProcess(tokens: Token[]) {
-  return tokens.map((token, i) => {
-    const nextToken = tokens[i + 1] || EOF_TOKEN;
-    if (isToken.SET(token) && nextToken.text === '(') {
-      // This is SET datatype, not SET statement
-      return { ...token, type: TokenType.RESERVED_FUNCTION_NAME };
-    }
-    return token;
-  });
-}

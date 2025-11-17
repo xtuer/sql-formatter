@@ -13,6 +13,7 @@ import supportsOperators from './features/operators.js';
 import supportsStrings from './features/strings.js';
 import supportsArrayAndMapAccessors from './features/arrayAndMapAccessors.js';
 import supportsComments from './features/comments.js';
+import supportsCommentOn from './features/commentOn.js';
 import supportsIdentifiers from './features/identifiers.js';
 import supportsParams from './options/param.js';
 import supportsSetOperations from './features/setOperations.js';
@@ -24,13 +25,17 @@ import supportsTruncateTable from './features/truncateTable.js';
 import supportsCreateView from './features/createView.js';
 import supportsAlterTable from './features/alterTable.js';
 import supportsIsDistinctFrom from './features/isDistinctFrom.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('TrinoFormatter', () => {
   const language = 'trino';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
+  supportsCommentOn(format);
   supportsCreateView(format, { orReplace: true, materialized: true });
   supportsCreateTable(format, { ifNotExists: true });
   supportsDropTable(format, { ifExists: true });
@@ -48,15 +53,16 @@ describe('TrinoFormatter', () => {
   supportsIdentifiers(format, [`""-qq`]);
   supportsBetween(format);
   // Missing: '?' operator (for row patterns)
-  supportsOperators(format, ['%', '->', '=>', '||', '|', '^', '$'], ['AND', 'OR']);
+  supportsOperators(format, ['%', '->', '=>', '||', '|', '^', '$'], { any: true });
   supportsIsDistinctFrom(format);
-  supportsArrayLiterals(format);
+  supportsArrayLiterals(format, { withArrayPrefix: true });
   supportsArrayAndMapAccessors(format);
   supportsJoin(format);
   supportsSetOperations(format);
   supportsParams(format, { positional: true });
   supportsWindow(format);
   supportsLimiting(format, { limit: true, offset: true, fetchFirst: true, fetchNext: true });
+  supportsDataTypeCase(format);
 
   it('formats SET SESSION', () => {
     const result = format('SET SESSION foo = 444;');

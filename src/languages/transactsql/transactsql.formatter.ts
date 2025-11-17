@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './transactsql.functions.js';
-import { keywords } from './transactsql.keywords.js';
+import { dataTypes, keywords } from './transactsql.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -18,6 +18,8 @@ const reservedClauses = expandPhrases([
   'ORDER BY',
   'OFFSET',
   'FETCH {FIRST | NEXT}',
+  'FOR {BROWSE | XML | JSON}',
+  'OPTION',
   // Data manipulation
   // - insert:
   'INSERT [INTO]',
@@ -28,13 +30,13 @@ const reservedClauses = expandPhrases([
   'MERGE [INTO]',
   'WHEN [NOT] MATCHED [BY TARGET | BY SOURCE] [THEN]',
   'UPDATE SET',
-  // Data definition
-  'CREATE [OR ALTER] [MATERIALIZED] VIEW',
-  'CREATE TABLE',
-  'CREATE [OR ALTER] {PROC | PROCEDURE}',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases(['CREATE TABLE']);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR ALTER] [MATERIALIZED] VIEW',
   // - update:
   'UPDATE',
   'WHERE CURRENT OF',
@@ -49,6 +51,19 @@ const onelineClauses = expandPhrases([
   'ALTER COLUMN',
   // - truncate:
   'TRUNCATE TABLE',
+  // indexes
+  'CREATE [UNIQUE] [CLUSTERED] INDEX',
+  // databases
+  'CREATE DATABASE',
+  'ALTER DATABASE',
+  'DROP DATABASE [IF EXISTS]',
+  // functions/procedures
+  'CREATE [OR ALTER] [PARTITION] {FUNCTION | PROCEDURE | PROC}',
+  'ALTER [PARTITION] {FUNCTION | PROCEDURE | PROC}',
+  'DROP [PARTITION] {FUNCTION | PROCEDURE | PROC} [IF EXISTS]',
+  // other statements
+  'GO',
+  'USE',
   // https://docs.microsoft.com/en-us/sql/t-sql/statements/statements?view=sql-server-ver15
   'ADD SENSITIVITY CLASSIFICATION',
   'ADD SIGNATURE',
@@ -77,7 +92,6 @@ const onelineClauses = expandPhrases([
   'CERTIFICATE',
   'CLOSE MASTER KEY',
   'CLOSE SYMMETRIC KEY',
-  'COLLATE',
   'COLUMN ENCRYPTION KEY',
   'COLUMN MASTER KEY',
   'COLUMNSTORE INDEX',
@@ -118,7 +132,6 @@ const onelineClauses = expandPhrases([
   'FULLTEXT CATALOG',
   'FULLTEXT INDEX',
   'FULLTEXT STOPLIST',
-  'FUNCTION',
   'GET CONVERSATION GROUP',
   'GET_TRANSMISSION_STATUS',
   'GRANT',
@@ -139,9 +152,7 @@ const onelineClauses = expandPhrases([
   'OPEN MASTER KEY',
   'OPEN SYMMETRIC KEY',
   'PARSEONLY',
-  'PARTITION FUNCTION',
   'PARTITION SCHEME',
-  'PROCEDURE',
   'QUERY_GOVERNOR_COST_LIMIT',
   'QUEUE',
   'QUOTED_IDENTIFIER',
@@ -215,23 +226,28 @@ const reservedJoins = expandPhrases([
   '{CROSS | OUTER} APPLY',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
   '{ROWS | RANGE} BETWEEN',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 // https://docs.microsoft.com/en-us/sql/t-sql/language-reference?view=sql-server-ver15
 export const transactsql: DialectOptions = {
+  name: 'transactsql',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     nestedBlockComments: true,
-    stringTypes: [{ quote: "''-qq", prefixes: ['N'] }],
+    stringTypes: [{ quote: "''-qq", prefixes: ['N'] }, '{}'],
     identTypes: [`""-qq`, '[]'],
     identChars: { first: '#@', rest: '#@$' },
     paramTypes: { named: ['@'], quoted: ['@'] },
@@ -252,11 +268,14 @@ export const transactsql: DialectOptions = {
       '&=',
       '^=',
       '::',
+      ':',
     ],
+    propertyAccessOperators: ['..'],
     // TODO: Support for money constants
   },
   formatOptions: {
     alwaysDenseOperators: ['::'],
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

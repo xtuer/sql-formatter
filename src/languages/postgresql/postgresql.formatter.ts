@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './postgresql.functions.js';
-import { keywords } from './postgresql.keywords.js';
+import { dataTypes, keywords } from './postgresql.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -23,17 +23,21 @@ const reservedClauses = expandPhrases([
   // - insert:
   'INSERT INTO',
   'VALUES',
+  'DEFAULT VALUES',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [OR REPLACE] [TEMP | TEMPORARY] [RECURSIVE] VIEW',
-  'CREATE MATERIALIZED VIEW [IF NOT EXISTS]',
-  'CREATE [GLOBAL | LOCAL] [TEMPORARY | TEMP | UNLOGGED] TABLE [IF NOT EXISTS]',
   // other
   'RETURNING',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [GLOBAL | LOCAL] [TEMPORARY | TEMP | UNLOGGED] TABLE [IF NOT EXISTS]',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create
+  'CREATE [OR REPLACE] [TEMP | TEMPORARY] [RECURSIVE] VIEW',
+  'CREATE [MATERIALIZED] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE [ONLY]',
   'WHERE CURRENT OF',
@@ -51,7 +55,7 @@ const onelineClauses = expandPhrases([
   'ADD [COLUMN] [IF NOT EXISTS]',
   'DROP [COLUMN] [IF EXISTS]',
   'ALTER [COLUMN]',
-  '[SET DATA] TYPE', // for alter column
+  'SET DATA TYPE', // for alter column
   '{SET | DROP} DEFAULT', // for alter column
   '{SET | DROP} NOT NULL', // for alter column
   // - truncate:
@@ -108,35 +112,34 @@ const onelineClauses = expandPhrases([
   'CHECKPOINT',
   'CLOSE',
   'CLUSTER',
-  'COMMENT',
   'COMMIT',
   'COMMIT PREPARED',
   'COPY',
   'CREATE ACCESS METHOD',
-  'CREATE AGGREGATE',
+  'CREATE [OR REPLACE] AGGREGATE',
   'CREATE CAST',
   'CREATE COLLATION',
-  'CREATE CONVERSION',
+  'CREATE [DEFAULT] CONVERSION',
   'CREATE DATABASE',
   'CREATE DOMAIN',
   'CREATE EVENT TRIGGER',
   'CREATE EXTENSION',
   'CREATE FOREIGN DATA WRAPPER',
   'CREATE FOREIGN TABLE',
-  'CREATE FUNCTION',
+  'CREATE [OR REPLACE] FUNCTION',
   'CREATE GROUP',
-  'CREATE INDEX',
-  'CREATE LANGUAGE',
+  'CREATE [UNIQUE] INDEX',
+  'CREATE [OR REPLACE] [TRUSTED] [PROCEDURAL] LANGUAGE',
   'CREATE OPERATOR',
   'CREATE OPERATOR CLASS',
   'CREATE OPERATOR FAMILY',
   'CREATE POLICY',
-  'CREATE PROCEDURE',
+  'CREATE [OR REPLACE] PROCEDURE',
   'CREATE PUBLICATION',
   'CREATE ROLE',
-  'CREATE RULE',
-  'CREATE SCHEMA',
-  'CREATE SEQUENCE',
+  'CREATE [OR REPLACE] RULE',
+  'CREATE SCHEMA [AUTHORIZATION]',
+  'CREATE [TEMPORARY | TEMP | UNLOGGED] SEQUENCE',
   'CREATE SERVER',
   'CREATE STATISTICS',
   'CREATE SUBSCRIPTION',
@@ -145,8 +148,8 @@ const onelineClauses = expandPhrases([
   'CREATE TEXT SEARCH DICTIONARY',
   'CREATE TEXT SEARCH PARSER',
   'CREATE TEXT SEARCH TEMPLATE',
-  'CREATE TRANSFORM',
-  'CREATE TRIGGER',
+  'CREATE [OR REPLACE] TRANSFORM',
+  'CREATE [OR REPLACE] [CONSTRAINT] TRIGGER',
   'CREATE TYPE',
   'CREATE USER',
   'CREATE USER MAPPING',
@@ -166,9 +169,10 @@ const onelineClauses = expandPhrases([
   'DROP FOREIGN TABLE',
   'DROP FUNCTION',
   'DROP GROUP',
+  'DROP IDENTITY',
   'DROP INDEX',
   'DROP LANGUAGE',
-  'DROP MATERIALIZED VIEW',
+  'DROP MATERIALIZED VIEW [IF EXISTS]',
   'DROP OPERATOR',
   'DROP OPERATOR CLASS',
   'DROP OPERATOR FAMILY',
@@ -205,13 +209,14 @@ const onelineClauses = expandPhrases([
   'LOCK',
   'MOVE',
   'NOTIFY',
+  'OVERRIDING SYSTEM VALUE',
   'PREPARE',
   'PREPARE TRANSACTION',
   'REASSIGN OWNED',
   'REFRESH MATERIALIZED VIEW',
   'REINDEX',
   'RELEASE SAVEPOINT',
-  'RESET',
+  'RESET [ALL|ROLE|SESSION AUTHORIZATION]',
   'REVOKE',
   'ROLLBACK',
   'ROLLBACK PREPARED',
@@ -243,31 +248,44 @@ const reservedJoins = expandPhrases([
   'NATURAL {LEFT | RIGHT | FULL} [OUTER] JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
-  'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
+const reservedKeywordPhrases = expandPhrases([
+  'PRIMARY KEY',
+  'GENERATED {ALWAYS | BY DEFAULT} AS IDENTITY',
+  'ON {UPDATE | DELETE} [NO ACTION | RESTRICT | CASCADE | SET NULL | SET DEFAULT]',
+  'DO {NOTHING | UPDATE}',
+  'AS MATERIALIZED',
   '{ROWS | RANGE | GROUPS} BETWEEN',
-  // https://www.postgresql.org/docs/current/datatype-datetime.html
-  '{TIMESTAMP | TIME} {WITH | WITHOUT} TIME ZONE',
   // comparison operator
   'IS [NOT] DISTINCT FROM',
+  'NULLS {FIRST | LAST}',
+  'WITH ORDINALITY',
+]);
+
+const reservedDataTypePhrases = expandPhrases([
+  // https://www.postgresql.org/docs/current/datatype-datetime.html
+  '[TIMESTAMP | TIME] {WITH | WITHOUT} TIME ZONE',
 ]);
 
 // https://www.postgresql.org/docs/14/index.html
 export const postgresql: DialectOptions = {
+  name: 'postgresql',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     nestedBlockComments: true,
     extraParens: ['[]'],
+    underscoresInNumbers: true,
     stringTypes: [
       '$$',
       { quote: "''-qq", prefixes: ['U&'] },
-      { quote: "''-bs", prefixes: ['E'], requirePrefix: true },
+      { quote: "''-qq-bs", prefixes: ['E'], requirePrefix: true },
       { quote: "''-raw", prefixes: ['B', 'X'], requirePrefix: true },
     ],
     identTypes: [{ quote: '""-qq', prefixes: ['U&'] }],
@@ -347,6 +365,7 @@ export const postgresql: DialectOptions = {
       // Text search
       '@@@',
       '!!',
+      '^@',
       // Trigram/trigraph
       '<%',
       '%>',
@@ -358,10 +377,20 @@ export const postgresql: DialectOptions = {
       '<->>>',
       // Type cast
       '::',
+      ':',
+      // Custom operators defined by pgvector extension
+      // https://github.com/pgvector/pgvector#querying
+      '<#>',
+      '<=>',
+      '<+>',
+      '<~>',
+      '<%>',
     ],
+    operatorKeyword: true,
   },
   formatOptions: {
-    alwaysDenseOperators: ['::'],
-    onelineClauses,
+    alwaysDenseOperators: ['::', ':'],
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
