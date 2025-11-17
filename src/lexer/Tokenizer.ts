@@ -12,7 +12,7 @@ export default class Tokenizer {
   private rulesBeforeParams: TokenRule[];
   private rulesAfterParams: TokenRule[];
 
-  constructor(private cfg: TokenizerOptions) {
+  constructor(private cfg: TokenizerOptions, private dialectName: string) {
     this.rulesBeforeParams = this.buildRulesBeforeParams(cfg);
     this.rulesAfterParams = this.buildRulesAfterParams(cfg);
   }
@@ -23,7 +23,7 @@ export default class Tokenizer {
       ...this.buildParamRules(this.cfg, paramTypesOverrides),
       ...this.rulesAfterParams,
     ];
-    const tokens = new TokenizerEngine(rules).tokenize(input);
+    const tokens = new TokenizerEngine(rules, this.dialectName).tokenize(input);
     return this.cfg.postProcess ? this.cfg.postProcess(tokens) : tokens;
   }
 
@@ -31,6 +31,11 @@ export default class Tokenizer {
   // the Tokenizer config options specified for each SQL dialect
   private buildRulesBeforeParams(cfg: TokenizerOptions): TokenRule[] {
     return this.validRules([
+      {
+        type: TokenType.DISABLE_COMMENT,
+        regex:
+          /(\/\* *sql-formatter-disable *\*\/[\s\S]*?(?:\/\* *sql-formatter-enable *\*\/|$))/uy,
+      },
       {
         type: TokenType.BLOCK_COMMENT,
         regex: cfg.nestedBlockComments ? new NestedComment() : /(\/\*[^]*?\*\/)/uy,
@@ -45,14 +50,20 @@ export default class Tokenizer {
       },
       {
         type: TokenType.NUMBER,
-        regex:
-          /(?:0x[0-9a-fA-F]+|0b[01]+|(?:-\s*)?[0-9]+(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+(?:\.[0-9]+)?)?)(?!\w)/uy,
+        regex: cfg.underscoresInNumbers
+          ? /(?:0x[0-9a-fA-F_]+|0b[01_]+|(?:-\s*)?(?:[0-9_]*\.[0-9_]+|[0-9_]+(?:\.[0-9_]*)?)(?:[eE][-+]?[0-9_]+(?:\.[0-9_]+)?)?)(?![\w\p{Alphabetic}])/uy
+          : /(?:0x[0-9a-fA-F]+|0b[01]+|(?:-\s*)?(?:[0-9]*\.[0-9]+|[0-9]+(?:\.[0-9]*)?)(?:[eE][-+]?[0-9]+(?:\.[0-9]+)?)?)(?![\w\p{Alphabetic}])/uy,
       },
-      // RESERVED_PHRASE is matched before all other keyword tokens
+      // RESERVED_KEYWORD_PHRASE and RESERVED_DATA_TYPE_PHRASE  is matched before all other keyword tokens
       // to e.g. prioritize matching "TIMESTAMP WITH TIME ZONE" phrase over "WITH" clause.
       {
-        type: TokenType.RESERVED_PHRASE,
-        regex: regex.reservedWord(cfg.reservedPhrases ?? [], cfg.identChars),
+        type: TokenType.RESERVED_KEYWORD_PHRASE,
+        regex: regex.reservedWord(cfg.reservedKeywordPhrases ?? [], cfg.identChars),
+        text: toCanonical,
+      },
+      {
+        type: TokenType.RESERVED_DATA_TYPE_PHRASE,
+        regex: regex.reservedWord(cfg.reservedDataTypePhrases ?? [], cfg.identChars),
         text: toCanonical,
       },
       {
@@ -125,9 +136,22 @@ export default class Tokenizer {
         regex: cfg.supportsXor ? /XOR\b/iuy : undefined,
         text: toCanonical,
       },
+      ...(cfg.operatorKeyword
+        ? [
+            {
+              type: TokenType.OPERATOR,
+              regex: /OPERATOR *\([^)]+\)/iuy,
+            },
+          ]
+        : []),
       {
         type: TokenType.RESERVED_FUNCTION_NAME,
         regex: regex.reservedWord(cfg.reservedFunctionNames, cfg.identChars),
+        text: toCanonical,
+      },
+      {
+        type: TokenType.RESERVED_DATA_TYPE,
+        regex: regex.reservedWord(cfg.reservedDataTypes, cfg.identChars),
         text: toCanonical,
       },
       {
@@ -179,7 +203,10 @@ export default class Tokenizer {
         ]),
       },
       { type: TokenType.ASTERISK, regex: /[*]/uy },
-      { type: TokenType.DOT, regex: /[.]/uy },
+      {
+        type: TokenType.PROPERTY_ACCESS_OPERATOR,
+        regex: regex.operator(['.', ...(cfg.propertyAccessOperators ?? [])]),
+      },
     ]);
   }
 

@@ -23,9 +23,12 @@ The following dialects can be imported from `"sql-formatter"` module:
 - `sql` - [Standard SQL][]
 - `bigquery` - [GCP BigQuery][]
 - `db2` - [IBM DB2][]
+- `db2i` - [IBM DB2i][] (experimental)
+- `duckdb` - [DuckDB][]
 - `hive` - [Apache Hive][]
 - `mariadb` - [MariaDB][]
 - `mysql` - [MySQL][]
+- `tidb` - [TiDB][]
 - `n1ql` - [Couchbase N1QL][]
 - `plsql` - [Oracle PL/SQL][]
 - `postgresql` - [PostgreSQL][]
@@ -50,6 +53,7 @@ The `dialect` parameter can also be used to specify a custom SQL dialect configu
 import { formatDialect, DialectOptions } from 'sql-formatter';
 
 const myDialect: DialectOptions {
+  name: 'my_dialect',
   tokenizerOptions: {
     // See source code for examples of tokenizer config options
     // For example: src/languages/sqlite/sqlite.formatter.ts
@@ -69,9 +73,12 @@ You likely only want to use this if your other alternative is to fork SQL Format
 [standard sql]: https://en.wikipedia.org/wiki/SQL:2011
 [gcp bigquery]: https://cloud.google.com/bigquery
 [ibm db2]: https://www.ibm.com/analytics/us/en/technology/db2/
+[ibm db2i]: https://www.ibm.com/docs/en/i/7.5?topic=overview-db2-i
+[duckdb]: https://duckdb.org/
 [apache hive]: https://hive.apache.org/
 [mariadb]: https://mariadb.com/
 [mysql]: https://www.mysql.com/
+[tidb]: https://github.com/pingcap/tidb/
 [couchbase n1ql]: http://www.couchbase.com/n1ql
 [oracle pl/sql]: http://www.oracle.com/technetwork/database/features/plsql/index.html
 [postgresql]: https://www.postgresql.org/

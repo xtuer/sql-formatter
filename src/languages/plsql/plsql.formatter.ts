@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { EOF_TOKEN, isReserved, isToken, Token, TokenType } from '../../lexer/token.js';
-import { keywords } from './plsql.keywords.js';
+import { dataTypes, keywords } from './plsql.keywords.js';
 import { functions } from './plsql.functions.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT | UNIQUE]']);
@@ -28,15 +28,18 @@ const reservedClauses = expandPhrases([
   'MERGE [INTO]',
   'WHEN [NOT] MATCHED [THEN]',
   'UPDATE SET',
-  // Data definition
-  'CREATE [OR REPLACE] [NO FORCE | FORCE] [EDITIONING | EDITIONABLE | EDITIONABLE EDITIONING | NONEDITIONABLE] VIEW',
-  'CREATE MATERIALIZED VIEW',
-  'CREATE [GLOBAL TEMPORARY | PRIVATE TEMPORARY | SHARDED | DUPLICATED | IMMUTABLE BLOCKCHAIN | BLOCKCHAIN | IMMUTABLE] TABLE',
   // other
   'RETURNING',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [GLOBAL TEMPORARY | PRIVATE TEMPORARY | SHARDED | DUPLICATED | IMMUTABLE BLOCKCHAIN | BLOCKCHAIN | IMMUTABLE] TABLE',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE] [NO FORCE | FORCE] [EDITIONING | EDITIONABLE | EDITIONABLE EDITIONING | NONEDITIONABLE] VIEW',
+  'CREATE MATERIALIZED VIEW',
   // - update:
   'UPDATE [ONLY]',
   // - delete:
@@ -63,7 +66,7 @@ const onelineClauses = expandPhrases([
   'START WITH',
 ]);
 
-const reservedSetOperations = expandPhrases(['UNION [ALL]', 'EXCEPT', 'INTERSECT']);
+const reservedSetOperations = expandPhrases(['UNION [ALL]', 'MINUS', 'INTERSECT']);
 
 const reservedJoins = expandPhrases([
   'JOIN',
@@ -75,21 +78,26 @@ const reservedJoins = expandPhrases([
   '{CROSS | OUTER} APPLY',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON {UPDATE | DELETE} [SET NULL]',
   'ON COMMIT',
   '{ROWS | RANGE} BETWEEN',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const plsql: DialectOptions = {
+  name: 'plsql',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     supportsXor: true,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     stringTypes: [
       { quote: "''-qq", prefixes: ['N'] },
@@ -102,7 +110,6 @@ export const plsql: DialectOptions = {
     identChars: { rest: '$#' },
     variableTypes: [{ regex: '&{1,2}[A-Za-z][A-Za-z0-9_$#]*' }],
     paramTypes: { numbered: [':'], named: [':'] },
-    paramChars: {}, // Empty object used on purpose to not allow $ and # chars as specified in identChars
     operators: [
       '**',
       ':=',
@@ -120,7 +127,8 @@ export const plsql: DialectOptions = {
   },
   formatOptions: {
     alwaysDenseOperators: ['@'],
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
 

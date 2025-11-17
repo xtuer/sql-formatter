@@ -24,12 +24,15 @@ import supportsMergeInto from './features/mergeInto.js';
 import supportsCreateView from './features/createView.js';
 import supportsAlterTable from './features/alterTable.js';
 import supportsIsDistinctFrom from './features/isDistinctFrom.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('BigQueryFormatter', () => {
   const language = 'bigquery';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format, { hashComments: true });
   supportsCreateView(format, { orReplace: true, materialized: true, ifNotExists: true });
   supportsCreateTable(format, { orReplace: true, ifNotExists: true });
@@ -46,7 +49,7 @@ describe('BigQueryFormatter', () => {
   supportsMergeInto(format);
   supportsStrings(format, ['""-bs', "''-bs", "R''", 'R""', "B''", 'B""']);
   supportsIdentifiers(format, ['``']);
-  supportsArrayLiterals(format);
+  supportsArrayLiterals(format, { withArrayPrefix: true, withoutArrayPrefix: true });
   supportsBetween(format);
   supportsJoin(format, { without: ['NATURAL'] });
   supportsSetOperations(format, [
@@ -55,11 +58,12 @@ describe('BigQueryFormatter', () => {
     'EXCEPT DISTINCT',
     'INTERSECT DISTINCT',
   ]);
-  supportsOperators(format, ['&', '|', '^', '~', '>>', '<<', '||', '=>']);
+  supportsOperators(format, ['&', '|', '^', '~', '>>', '<<', '||', '=>'], { any: true });
   supportsIsDistinctFrom(format);
   supportsParams(format, { positional: true, named: ['@'], quoted: ['@``'] });
   supportsWindow(format);
   supportsLimiting(format, { limit: true, offset: true });
+  supportsDataTypeCase(format);
 
   // Note: BigQuery supports single dashes inside identifiers, so my-ident would be
   // detected as identifier, while other SQL dialects would detect it as
@@ -131,7 +135,7 @@ describe('BigQueryFormatter', () => {
     const result = format('SELECT STRUCT("Alpha" as name, [23.4, 26.3, 26.4] as splits) FROM beta');
     expect(result).toBe(dedent`
       SELECT
-        STRUCT ("Alpha" as name, [23.4, 26.3, 26.4] as splits)
+        STRUCT("Alpha" as name, [23.4, 26.3, 26.4] as splits)
       FROM
         beta
     `);
@@ -141,6 +145,14 @@ describe('BigQueryFormatter', () => {
     expect(format('SELECT ARRAY<FLOAT>[1]')).toBe(dedent`
       SELECT
         ARRAY<FLOAT>[1]
+    `);
+  });
+
+  it('STRUCT and ARRAY type case is affected by dataTypeCase option', () => {
+    expect(format('SELECT array<struct<y int64, z string>>[(1, "foo")]', { dataTypeCase: 'upper' }))
+      .toBe(dedent`
+      SELECT
+        ARRAY<STRUCT<y INT64, z STRING>>[(1, "foo")]
     `);
   });
 
@@ -339,8 +351,7 @@ describe('BigQueryFormatter', () => {
           uris = ['gs://bucket/path1.csv']
         )`;
       const expected = dedent`
-        CREATE EXTERNAL TABLE
-          dataset.CsvTable
+        CREATE EXTERNAL TABLE dataset.CsvTable
         WITH PARTITION COLUMNS
           (field_1 STRING, field_2 INT64) OPTIONS(format = 'CSV', uris = ['gs://bucket/path1.csv'])`;
       expect(format(input)).toBe(expected);

@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './hive.functions.js';
-import { keywords } from './hive.keywords.js';
+import { dataTypes, keywords } from './hive.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -39,12 +39,15 @@ const reservedClauses = expandPhrases([
   //   https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-Loadingfilesintotables
   'LOAD DATA [LOCAL] INPATH',
   '[OVERWRITE] INTO TABLE',
-  // Data definition
-  'CREATE [MATERIALIZED] VIEW [IF NOT EXISTS]',
+]);
+
+const standardOnelineClauses = expandPhrases([
   'CREATE [TEMPORARY] [EXTERNAL] TABLE [IF NOT EXISTS]',
 ]);
 
-const onelineClauses = expandPhrases([
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [MATERIALIZED] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE',
   // - delete:
@@ -81,15 +84,20 @@ const reservedJoins = expandPhrases([
 
 const reservedPhrases = expandPhrases(['{ROWS | RANGE} BETWEEN']);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 // https://cwiki.apache.org/confluence/display/Hive/LanguageManual
 export const hive: DialectOptions = {
+  name: 'hive',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases: reservedPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     extraParens: ['[]'],
     stringTypes: ['""-bs', "''-bs"],
@@ -98,6 +106,7 @@ export const hive: DialectOptions = {
     operators: ['%', '~', '^', '|', '&', '<=>', '==', '!', '||'],
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

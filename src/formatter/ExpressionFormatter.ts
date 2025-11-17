@@ -28,6 +28,9 @@ import {
   CaseExpressionNode,
   CaseWhenNode,
   CaseElseNode,
+  DataTypeNode,
+  ParameterizedDataTypeNode,
+  DisableCommentNode,
 } from '../parser/ast.js';
 
 import Layout, { WS } from './Layout.js';
@@ -47,6 +50,8 @@ export interface DialectFormatOptions {
   alwaysDenseOperators?: string[];
   // List of clauses that should be formatted on a single line
   onelineClauses: string[];
+  // List of clauses that should be formatted on a single line in tabular style
+  tabularOnelineClauses?: string[];
 }
 
 // Contains the same data as DialectFormatOptions,
@@ -54,6 +59,7 @@ export interface DialectFormatOptions {
 export interface ProcessedDialectFormatOptions {
   alwaysDenseOperators: string[];
   onelineClauses: Record<string, boolean>;
+  tabularOnelineClauses: Record<string, boolean>;
 }
 
 /** Formats a generic SQL expression */
@@ -94,6 +100,8 @@ export default class ExpressionFormatter {
     switch (node.type) {
       case NodeType.function_call:
         return this.formatFunctionCall(node);
+      case NodeType.parameterized_data_type:
+        return this.formatParameterizedDataType(node);
       case NodeType.array_subscript:
         return this.formatArraySubscript(node);
       case NodeType.property_access:
@@ -130,6 +138,10 @@ export default class ExpressionFormatter {
         return this.formatLineComment(node);
       case NodeType.block_comment:
         return this.formatBlockComment(node);
+      case NodeType.disable_comment:
+        return this.formatBlockComment(node);
+      case NodeType.data_type:
+        return this.formatDataType(node);
       case NodeType.keyword:
         return this.formatKeywordNode(node);
     }
@@ -137,23 +149,43 @@ export default class ExpressionFormatter {
 
   private formatFunctionCall(node: FunctionCallNode) {
     this.withComments(node.nameKw, () => {
-      this.layout.add(this.showKw(node.nameKw));
+      this.layout.add(this.showFunctionKw(node.nameKw));
+    });
+    this.formatNode(node.parenthesis);
+  }
+
+  private formatParameterizedDataType(node: ParameterizedDataTypeNode) {
+    this.withComments(node.dataType, () => {
+      this.layout.add(this.showDataType(node.dataType));
     });
     this.formatNode(node.parenthesis);
   }
 
   private formatArraySubscript(node: ArraySubscriptNode) {
+    let formattedArray: string;
+
+    switch (node.array.type) {
+      case NodeType.data_type:
+        formattedArray = this.showDataType(node.array);
+        break;
+      case NodeType.keyword:
+        formattedArray = this.showKw(node.array);
+        break;
+      default:
+        formattedArray = this.showIdentifier(node.array);
+        break;
+    }
+
     this.withComments(node.array, () => {
-      this.layout.add(
-        node.array.type === NodeType.keyword ? this.showKw(node.array) : node.array.text
-      );
+      this.layout.add(formattedArray);
     });
+
     this.formatNode(node.parenthesis);
   }
 
   private formatPropertyAccess(node: PropertyAccessNode) {
     this.formatNode(node.object);
-    this.layout.add(WS.NO_SPACE, '.');
+    this.layout.add(WS.NO_SPACE, node.operator);
     this.formatNode(node.property);
   }
 
@@ -226,7 +258,11 @@ export default class ExpressionFormatter {
   }
 
   private isOnelineClause(node: ClauseNode): boolean {
-    return this.dialectCfg.onelineClauses[node.nameKw.text];
+    if (isTabularStyle(this.cfg)) {
+      return this.dialectCfg.tabularOnelineClauses[node.nameKw.text];
+    } else {
+      return this.dialectCfg.onelineClauses[node.nameKw.text];
+    }
   }
 
   private formatClauseInIndentedStyle(node: ClauseNode) {
@@ -286,7 +322,7 @@ export default class ExpressionFormatter {
   }
 
   private formatIdentifier(node: IdentifierNode) {
-    this.layout.add(node.text, WS.SPACE);
+    this.layout.add(this.showIdentifier(node), WS.SPACE);
   }
 
   private formatParameter(node: ParameterNode) {
@@ -341,8 +377,8 @@ export default class ExpressionFormatter {
     }
   }
 
-  private formatBlockComment(node: BlockCommentNode) {
-    if (this.isMultilineBlockComment(node)) {
+  private formatBlockComment(node: BlockCommentNode | DisableCommentNode) {
+    if (node.type === NodeType.block_comment && this.isMultilineBlockComment(node)) {
       this.splitBlockComment(node.text).forEach(line => {
         this.layout.add(WS.NEWLINE, WS.INDENT, line);
       });
@@ -487,6 +523,10 @@ export default class ExpressionFormatter {
     }
   }
 
+  private formatDataType(node: DataTypeNode) {
+    this.layout.add(this.showDataType(node), WS.SPACE);
+  }
+
   private showKw(node: KeywordNode): string {
     if (isTabularToken(node.tokenType)) {
       return toTabularFormat(this.showNonTabularKw(node), this.cfg.indentStyle);
@@ -498,6 +538,52 @@ export default class ExpressionFormatter {
   // Like showKw(), but skips tabular formatting
   private showNonTabularKw(node: KeywordNode): string {
     switch (this.cfg.keywordCase) {
+      case 'preserve':
+        return equalizeWhitespace(node.raw);
+      case 'upper':
+        return node.text;
+      case 'lower':
+        return node.text.toLowerCase();
+    }
+  }
+
+  private showFunctionKw(node: KeywordNode): string {
+    if (isTabularToken(node.tokenType)) {
+      return toTabularFormat(this.showNonTabularFunctionKw(node), this.cfg.indentStyle);
+    } else {
+      return this.showNonTabularFunctionKw(node);
+    }
+  }
+
+  // Like showFunctionKw(), but skips tabular formatting
+  private showNonTabularFunctionKw(node: KeywordNode): string {
+    switch (this.cfg.functionCase) {
+      case 'preserve':
+        return equalizeWhitespace(node.raw);
+      case 'upper':
+        return node.text;
+      case 'lower':
+        return node.text.toLowerCase();
+    }
+  }
+
+  private showIdentifier(node: IdentifierNode): string {
+    if (node.quoted) {
+      return node.text;
+    } else {
+      switch (this.cfg.identifierCase) {
+        case 'preserve':
+          return node.text;
+        case 'upper':
+          return node.text.toUpperCase();
+        case 'lower':
+          return node.text.toLowerCase();
+      }
+    }
+  }
+
+  private showDataType(node: DataTypeNode): string {
+    switch (this.cfg.dataTypeCase) {
       case 'preserve':
         return equalizeWhitespace(node.raw);
       case 'upper':

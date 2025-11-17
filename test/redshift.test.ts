@@ -2,30 +2,35 @@ import dedent from 'dedent-js';
 
 import { format as originalFormat, FormatFn } from '../src/sqlFormatter.js';
 import behavesLikeSqlFormatter from './behavesLikeSqlFormatter.js';
-
 import supportsAlterTable from './features/alterTable.js';
-import supportsCreateTable from './features/createTable.js';
-import supportsDropTable from './features/dropTable.js';
-import supportsJoin from './features/join.js';
-import supportsOperators from './features/operators.js';
-import supportsStrings from './features/strings.js';
-import supportsDeleteFrom from './features/deleteFrom.js';
+import supportsCommentOn from './features/commentOn.js';
 import supportsComments from './features/comments.js';
-import supportsIdentifiers from './features/identifiers.js';
-import supportsParams from './options/param.js';
-import supportsSetOperations from './features/setOperations.js';
-import supportsLimiting from './features/limiting.js';
-import supportsInsertInto from './features/insertInto.js';
-import supportsUpdate from './features/update.js';
-import supportsTruncateTable from './features/truncateTable.js';
+import supportsCreateTable from './features/createTable.js';
 import supportsCreateView from './features/createView.js';
+import supportsDeleteFrom from './features/deleteFrom.js';
+import supportsDropTable from './features/dropTable.js';
+import supportsIdentifiers from './features/identifiers.js';
+import supportsInsertInto from './features/insertInto.js';
+import supportsJoin from './features/join.js';
+import supportsLimiting from './features/limiting.js';
+import supportsOperators from './features/operators.js';
+import supportsSetOperations from './features/setOperations.js';
+import supportsStrings from './features/strings.js';
+import supportsTruncateTable from './features/truncateTable.js';
+import supportsUpdate from './features/update.js';
+import supportsParams from './options/param.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
+import supportsArrayLiterals from './features/arrayLiterals.js';
 
 describe('RedshiftFormatter', () => {
   const language = 'redshift';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
+  supportsCommentOn(format);
   supportsCreateView(format, { orReplace: true, materialized: true });
   supportsCreateTable(format, { ifNotExists: true });
   supportsDropTable(format, { ifExists: true });
@@ -42,11 +47,15 @@ describe('RedshiftFormatter', () => {
   supportsStrings(format, ["''-qq"]);
   supportsIdentifiers(format, [`""-qq`]);
   // Missing: '#' and '::' operator (tested separately)
-  supportsOperators(format, ['^', '%', '@', '|/', '||/', '&', '|', '~', '<<', '>>', '||']);
+  supportsOperators(format, ['^', '%', '@', '|/', '||/', '&', '|', '~', '<<', '>>', '||'], {
+    any: true,
+  });
   supportsJoin(format);
   supportsSetOperations(format, ['UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT', 'MINUS']);
   supportsParams(format, { numbered: ['$'] });
   supportsLimiting(format, { limit: true, offset: true });
+  supportsDataTypeCase(format);
+  supportsArrayLiterals(format, { withArrayPrefix: true });
 
   it('formats type-cast operator without spaces', () => {
     expect(format('SELECT 2 :: numeric AS foo;')).toBe(dedent`
@@ -87,8 +96,7 @@ describe('RedshiftFormatter', () => {
   it('formats temp table name starting with #', () => {
     expect(format(`CREATE TABLE #tablename AS tbl;`)).toBe(
       dedent`
-        CREATE TABLE
-          #tablename AS tbl;
+        CREATE TABLE #tablename AS tbl;
       `
     );
   });
@@ -99,14 +107,13 @@ describe('RedshiftFormatter', () => {
         'CREATE TABLE items (a INT PRIMARY KEY, b TEXT, c INT NOT NULL, d INT NOT NULL, e INT NOT NULL) DISTKEY(created_at) SORTKEY(created_at);'
       )
     ).toBe(dedent`
-      CREATE TABLE
-        items (
-          a INT PRIMARY KEY,
-          b TEXT,
-          c INT NOT NULL,
-          d INT NOT NULL,
-          e INT NOT NULL
-        ) DISTKEY (created_at) SORTKEY (created_at);
+      CREATE TABLE items (
+        a INT PRIMARY KEY,
+        b TEXT,
+        c INT NOT NULL,
+        d INT NOT NULL,
+        e INT NOT NULL
+      ) DISTKEY (created_at) SORTKEY (created_at);
     `);
   });
 
@@ -141,6 +148,17 @@ describe('RedshiftFormatter', () => {
       ALTER TABLE t
       ALTER COLUMN foo
       ENCODE my_encoding;
+    `);
+  });
+
+  it('supports QUALIFY clause', () => {
+    expect(format(`SELECT * FROM tbl QUALIFY ROW_NUMBER() OVER my_window = 1`)).toBe(dedent`
+      SELECT
+        *
+      FROM
+        tbl
+      QUALIFY
+        ROW_NUMBER() OVER my_window = 1
     `);
   });
 });

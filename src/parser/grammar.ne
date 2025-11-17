@@ -1,7 +1,7 @@
 @preprocessor typescript
 @{%
 import LexerAdapter from './LexerAdapter.js';
-import { NodeType, AstNode, CommentNode, KeywordNode } from './ast.js';
+import { NodeType, AstNode, CommentNode, KeywordNode, IdentifierNode, DataTypeNode } from './ast.js';
 import { Token, TokenType } from '../lexer/token.js';
 
 // The lexer here is only to provide the has() method,
@@ -19,6 +19,12 @@ const unwrap = <T>([[el]]: T[][]): T => el;
 const toKeywordNode = (token: Token): KeywordNode => ({
   type: NodeType.keyword,
   tokenType: token.type,
+  text: token.text,
+  raw: token.raw,
+});
+
+const toDataTypeNode = (token: Token): DataTypeNode => ({
+  type: NodeType.data_type,
   text: token.text,
   raw: token.raw,
 });
@@ -175,7 +181,6 @@ free_form_sql -> ( asteriskless_free_form_sql | asterisk ) {% unwrap %}
 asteriskless_free_form_sql ->
   ( asteriskless_andless_expression
   | logic_operator
-  | between_predicate
   | comma
   | comment
   | other_keyword ) {% unwrap %}
@@ -185,8 +190,10 @@ expression -> ( andless_expression | logic_operator ) {% unwrap %}
 andless_expression -> ( asteriskless_andless_expression | asterisk ) {% unwrap %}
 
 asteriskless_andless_expression ->
+  ( atomic_expression | between_predicate | case_expression ) {% unwrap %}
+
+atomic_expression ->
   ( array_subscript
-  | case_expression
   | function_call
   | property_access
   | parenthesis
@@ -196,12 +203,13 @@ asteriskless_andless_expression ->
   | identifier
   | parameter
   | literal
+  | data_type
   | keyword ) {% unwrap %}
 
 array_subscript -> %ARRAY_IDENTIFIER _ square_brackets {%
   ([arrayToken, _, brackets]) => ({
     type: NodeType.array_subscript,
-    array: addComments({ type: NodeType.identifier, text: arrayToken.text}, { trailing: _ }),
+    array: addComments({ type: NodeType.identifier, quoted: false, text: arrayToken.text}, { trailing: _ }),
     parenthesis: brackets,
   })
 %}
@@ -248,7 +256,7 @@ square_brackets -> "[" free_form_sql:* "]" {%
   })
 %}
 
-property_access -> expression _ %DOT _ (identifier | array_subscript | all_columns_asterisk) {%
+property_access -> atomic_expression _ %PROPERTY_ACCESS_OPERATOR _ (identifier | array_subscript | all_columns_asterisk | parameter) {%
   // Allowing property to be <array_subscript> is currently a hack.
   // A better way would be to allow <property_access> on the left side of array_subscript,
   // but we currently can't do that because of another hack that requires
@@ -257,6 +265,7 @@ property_access -> expression _ %DOT _ (identifier | array_subscript | all_colum
     return {
       type: NodeType.property_access,
       object: addComments(object, { trailing: _1 }),
+      operator: dot.text,
       property: addComments(property, { leading: _2 }),
     };
   }
@@ -308,7 +317,7 @@ operator -> ( %OPERATOR ) {% ([[token]]) => ({ type: NodeType.operator, text: to
 identifier ->
   ( %IDENTIFIER
   | %QUOTED_IDENTIFIER
-  | %VARIABLE ) {% ([[token]]) => ({ type: NodeType.identifier, text: token.text }) %}
+  | %VARIABLE ) {% ([[token]]) => ({ type: NodeType.identifier, quoted: token.type !== "IDENTIFIER", text: token.text }) %}
 
 parameter ->
   ( %NAMED_PARAMETER
@@ -323,9 +332,22 @@ literal ->
 
 keyword ->
   ( %RESERVED_KEYWORD
-  | %RESERVED_PHRASE
+  | %RESERVED_KEYWORD_PHRASE
   | %RESERVED_JOIN ) {%
   ([[token]]) => toKeywordNode(token)
+%}
+
+data_type ->
+  ( %RESERVED_DATA_TYPE
+  | %RESERVED_DATA_TYPE_PHRASE ) {%
+  ([[token]]) => toDataTypeNode(token)
+%}
+data_type -> %RESERVED_PARAMETERIZED_DATA_TYPE _ parenthesis {%
+  ([nameToken, _, parens]) => ({
+    type: NodeType.parameterized_data_type,
+    dataType: addComments(toDataTypeNode(nameToken), { trailing: _ }),
+    parenthesis: parens,
+  })
 %}
 
 logic_operator ->
@@ -355,6 +377,13 @@ comment -> %LINE_COMMENT {%
 comment -> %BLOCK_COMMENT {%
   ([token]) => ({
     type: NodeType.block_comment,
+    text: token.text,
+    precedingWhitespace: token.precedingWhitespace,
+  })
+%}
+comment -> %DISABLE_COMMENT {%
+  ([token]) => ({
+    type: NodeType.disable_comment,
     text: token.text,
     precedingWhitespace: token.precedingWhitespace,
   })

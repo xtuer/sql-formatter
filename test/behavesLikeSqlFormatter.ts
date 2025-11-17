@@ -3,38 +3,38 @@ import dedent from 'dedent-js';
 import { FormatFn } from '../src/sqlFormatter.js';
 
 import supportsCase from './features/case.js';
-import supportsNumbers from './features/numbers.js';
 import supportsWith from './features/with.js';
 import supportsTabWidth from './options/tabWidth.js';
 import supportsUseTabs from './options/useTabs.js';
 import supportsExpressionWidth from './options/expressionWidth.js';
 import supportsKeywordCase from './options/keywordCase.js';
+import supportsIdentifierCase from './options/identifierCase.js';
 import supportsIndentStyle from './options/indentStyle.js';
-import supportsCommaPosition from './options/commaPosition.js';
 import supportsLinesBetweenQueries from './options/linesBetweenQueries.js';
 import supportsNewlineBeforeSemicolon from './options/newlineBeforeSemicolon.js';
 import supportsLogicalOperatorNewline from './options/logicalOperatorNewline.js';
-import supportsTabulateAlias from './options/tabulateAlias.js';
 import supportsParamTypes from './options/paramTypes.js';
 import supportsWindowFunctions from './features/windowFunctions.js';
+import supportsFunctionCase from './options/functionCase.js';
+import supportsDisableComment from './features/disableComment.js';
 
 /**
  * Core tests for all SQL formatters
  */
 export default function behavesLikeSqlFormatter(format: FormatFn) {
+  supportsDisableComment(format);
   supportsCase(format);
-  supportsNumbers(format);
   supportsWith(format);
 
-  supportsTabulateAlias(format);
   supportsTabWidth(format);
   supportsUseTabs(format);
   supportsKeywordCase(format);
+  supportsIdentifierCase(format);
+  supportsFunctionCase(format);
   supportsIndentStyle(format);
   supportsLinesBetweenQueries(format);
   supportsExpressionWidth(format);
   supportsNewlineBeforeSemicolon(format);
-  supportsCommaPosition(format);
   supportsLogicalOperatorNewline(format);
   supportsParamTypes(format);
   supportsWindowFunctions(format);

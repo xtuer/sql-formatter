@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './redshift.functions.js';
-import { keywords } from './redshift.keywords.js';
+import { dataTypes, keywords } from './redshift.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -12,6 +12,7 @@ const reservedClauses = expandPhrases([
   'WHERE',
   'GROUP BY',
   'HAVING',
+  'QUALIFY',
   'PARTITION BY',
   'ORDER BY',
   'LIMIT',
@@ -22,12 +23,15 @@ const reservedClauses = expandPhrases([
   'VALUES',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [OR REPLACE | MATERIALIZED] VIEW',
+]);
+
+const standardOnelineClauses = expandPhrases([
   'CREATE [TEMPORARY | TEMP | LOCAL TEMPORARY | LOCAL TEMP] TABLE [IF NOT EXISTS]',
 ]);
 
-const onelineClauses = expandPhrases([
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [OR REPLACE | MATERIALIZED] VIEW',
   // - update:
   'UPDATE',
   // - delete:
@@ -64,7 +68,6 @@ const onelineClauses = expandPhrases([
   'CALL',
   'CANCEL',
   'CLOSE',
-  'COMMENT',
   'COMMIT',
   'COPY',
   'CREATE DATABASE',
@@ -129,7 +132,7 @@ const reservedJoins = expandPhrases([
   'NATURAL {LEFT | RIGHT | FULL} [OUTER] JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   // https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-data-conversion.html
   'NULL AS',
   // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_EXTERNAL_SCHEMA.html
@@ -139,16 +142,22 @@ const reservedPhrases = expandPhrases([
   '{ROWS | RANGE} BETWEEN',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 // https://docs.aws.amazon.com/redshift/latest/dg/cm_chap_SQLCommandRef.html
 export const redshift: DialectOptions = {
+  name: 'redshift',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
+    extraParens: ['[]'],
     stringTypes: ["''-qq"],
     identTypes: [`""-qq`],
     identChars: { first: '#' },
@@ -171,6 +180,7 @@ export const redshift: DialectOptions = {
   },
   formatOptions: {
     alwaysDenseOperators: ['::'],
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

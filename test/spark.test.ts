@@ -18,15 +18,18 @@ import supportsLimiting from './features/limiting.js';
 import supportsInsertInto from './features/insertInto.js';
 import supportsTruncateTable from './features/truncateTable.js';
 import supportsCreateView from './features/createView.js';
+import supportsDataTypeCase from './options/dataTypeCase.js';
+import supportsNumbers from './features/numbers.js';
 
 describe('SparkFormatter', () => {
   const language = 'spark';
   const format: FormatFn = (query, cfg = {}) => originalFormat(query, { ...cfg, language });
 
   behavesLikeSqlFormatter(format);
+  supportsNumbers(format);
   supportsComments(format);
   supportsCreateView(format, { orReplace: true, ifNotExists: true });
-  supportsCreateTable(format, { ifNotExists: true });
+  supportsCreateTable(format, { ifNotExists: true, columnComment: true, tableComment: true });
   supportsDropTable(format, { ifExists: true });
   supportsAlterTable(format, {
     dropColumn: true,
@@ -38,11 +41,10 @@ describe('SparkFormatter', () => {
   supportsStrings(format, ["''-bs", '""-bs', "X''", 'X""', "R''", 'R""']);
   supportsIdentifiers(format, ['``']);
   supportsBetween(format);
-  supportsOperators(
-    format,
-    ['%', '~', '^', '|', '&', '<=>', '==', '!', '||', '->'],
-    ['AND', 'OR', 'XOR']
-  );
+  supportsOperators(format, ['%', '~', '^', '|', '&', '<=>', '==', '!', '||', '->'], {
+    logicalOperators: ['AND', 'OR', 'XOR'],
+    any: true,
+  });
   supportsArrayAndMapAccessors(format);
   supportsJoin(format, {
     additionally: [
@@ -60,6 +62,20 @@ describe('SparkFormatter', () => {
   });
   supportsSetOperations(format);
   supportsLimiting(format, { limit: true });
+  supportsDataTypeCase(format);
+
+  // regression test for #859
+  it('supports identifiers that start with numbers', () => {
+    expect(format('SELECT 4four, 12345e FROM 5tbl')).toBe(
+      dedent`
+        SELECT
+          4four,
+          12345e
+        FROM
+          5tbl
+      `
+    );
+  });
 
   it('formats basic WINDOW clause', () => {
     const result = format(`SELECT * FROM tbl WINDOW win1, WINDOW win2, WINDOW win3;`);

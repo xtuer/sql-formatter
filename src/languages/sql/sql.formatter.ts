@@ -1,7 +1,7 @@
 import { DialectOptions } from '../../dialect.js';
 import { expandPhrases } from '../../expandPhrases.js';
 import { functions } from './sql.functions.js';
-import { keywords } from './sql.keywords.js';
+import { dataTypes, keywords } from './sql.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT]']);
 
@@ -24,12 +24,13 @@ const reservedClauses = expandPhrases([
   'VALUES',
   // - update:
   'SET',
-  // Data definition
-  'CREATE [RECURSIVE] VIEW',
-  'CREATE [GLOBAL TEMPORARY | LOCAL TEMPORARY] TABLE',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases(['CREATE [GLOBAL TEMPORARY | LOCAL TEMPORARY] TABLE']);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  'CREATE [RECURSIVE] VIEW',
   // - update:
   'UPDATE',
   'WHERE CURRENT OF',
@@ -68,19 +69,24 @@ const reservedJoins = expandPhrases([
   'NATURAL {LEFT | RIGHT | FULL} [OUTER] JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   'ON {UPDATE | DELETE} [SET NULL | SET DEFAULT]',
   '{ROWS | RANGE} BETWEEN',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 export const sql: DialectOptions = {
+  name: 'sql',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...standardOnelineClauses, ...tabularOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     stringTypes: [
       { quote: "''-qq-bs", prefixes: ['N', 'U&'] },
@@ -91,6 +97,7 @@ export const sql: DialectOptions = {
     operators: ['||'],
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };

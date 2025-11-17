@@ -1,8 +1,8 @@
 import { DialectOptions } from '../../dialect.js';
-import { EOF_TOKEN, isToken, TokenType, Token } from '../../lexer/token.js';
 import { expandPhrases } from '../../expandPhrases.js';
-import { keywords } from './bigquery.keywords.js';
+import { EOF_TOKEN, isToken, Token, TokenType } from '../../lexer/token.js';
 import { functions } from './bigquery.functions.js';
+import { dataTypes, keywords } from './bigquery.keywords.js';
 
 const reservedSelect = expandPhrases(['SELECT [ALL | DISTINCT] [AS STRUCT | AS VALUE]']);
 
@@ -30,9 +30,6 @@ const reservedClauses = expandPhrases([
   'MERGE [INTO]',
   'WHEN [NOT] MATCHED [BY SOURCE | BY TARGET] [THEN]',
   'UPDATE SET',
-  // Data definition, https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language
-  'CREATE [OR REPLACE] [MATERIALIZED] VIEW [IF NOT EXISTS]',
-  'CREATE [OR REPLACE] [TEMP|TEMPORARY|SNAPSHOT|EXTERNAL] TABLE [IF NOT EXISTS]',
 
   'CLUSTER BY',
   'FOR SYSTEM_TIME AS OF', // CREATE SNAPSHOT TABLE
@@ -41,7 +38,14 @@ const reservedClauses = expandPhrases([
   'REMOTE WITH CONNECTION',
 ]);
 
-const onelineClauses = expandPhrases([
+const standardOnelineClauses = expandPhrases([
+  'CREATE [OR REPLACE] [TEMP|TEMPORARY|SNAPSHOT|EXTERNAL] TABLE [IF NOT EXISTS]',
+]);
+
+const tabularOnelineClauses = expandPhrases([
+  // - create:
+  // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language
+  'CREATE [OR REPLACE] [MATERIALIZED] VIEW [IF NOT EXISTS]',
   // - update:
   'UPDATE',
   // - delete:
@@ -141,7 +145,7 @@ const reservedJoins = expandPhrases([
   '{INNER | CROSS} JOIN',
 ]);
 
-const reservedPhrases = expandPhrases([
+const reservedKeywordPhrases = expandPhrases([
   // https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#tablesample_operator
   'TABLESAMPLE SYSTEM',
   // From DDL: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language
@@ -154,15 +158,20 @@ const reservedPhrases = expandPhrases([
   'IS [NOT] DISTINCT FROM',
 ]);
 
+const reservedDataTypePhrases = expandPhrases([]);
+
 // https://cloud.google.com/bigquery/docs/reference/#standard-sql-reference
 export const bigquery: DialectOptions = {
+  name: 'bigquery',
   tokenizerOptions: {
     reservedSelect,
-    reservedClauses: [...reservedClauses, ...onelineClauses],
+    reservedClauses: [...reservedClauses, ...tabularOnelineClauses, ...standardOnelineClauses],
     reservedSetOperations,
     reservedJoins,
-    reservedPhrases,
+    reservedKeywordPhrases,
+    reservedDataTypePhrases,
     reservedKeywords: keywords,
+    reservedDataTypes: dataTypes,
     reservedFunctionNames: functions,
     extraParens: ['[]'],
     stringTypes: [
@@ -184,7 +193,8 @@ export const bigquery: DialectOptions = {
     postProcess,
   },
   formatOptions: {
-    onelineClauses,
+    onelineClauses: [...standardOnelineClauses, ...tabularOnelineClauses],
+    tabularOnelineClauses,
   },
 };
 
